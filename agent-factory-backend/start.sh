@@ -27,5 +27,5 @@ if [ ! -f ".env" ]; then
 fi
 
 # Start the server
-echo "Starting uvicorn server on port 8000..."
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+echo "Starting uvicorn server on port 8003..."
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8003

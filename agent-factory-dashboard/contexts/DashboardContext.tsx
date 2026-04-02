@@ -28,7 +28,7 @@ const DashboardContext = createContext<DashboardContextType>({
 });
 
 // API base URL from environment or default
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8003';
 
 // Fetch metrics from real API
 async function fetchMetrics(): Promise<DashboardMetrics> {
