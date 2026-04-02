@@ -1,0 +1,135 @@
+# Docker Compose configuration with gVisor sandbox
+# Note: Requires runsc runtime installed on host
+
+version: "3.9"
+
+services:
+  # Agent running in gVisor sandbox
+  fastapi-sandboxed:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandboxed
+    container_name: cs-fte-api-sandboxed
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-customer_success}"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    volumes:
+      - ./credentials:/app/credentials:ro
+      - tmp-volume:/tmp
+      - cache-volume:/app/.cache
+    ports:
+      - "${API_PORT:-8000}:8000"
+    # gVisor runtime
+    runtime: runsc
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    networks:
+      - cs-fte-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  # PostgreSQL (not sandboxed - needs full system access)
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cs-fte-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB:       ${POSTGRES_DB:-customer_success}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/00_extensions.sql:/docker-entrypoint-initdb.d/00_extensions.sql:ro
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-customer_success}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - cs-fte-net
+
+  # Kafka (not sandboxed - needs full system access)
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: cs-fte-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT:             "zookeeper:2181"
+      KAFKA_CFG_BROKER_ID:                     "1"
+      KAFKA_CFG_LISTENERS:                     "INTERNAL://:9092,EXTERNAL://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS:          "INTERNAL://kafka:9092,EXTERNAL://localhost:9093"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME:    "INTERNAL"
+      ALLOW_PLAINTEXT_LISTENER:                "yes"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE:     "true"
+      KAFKA_CFG_NUM_PARTITIONS:                "3"
+      KAFKA_CFG_DEFAULT_REPLICATION_FACTOR:    "1"
+      KAFKA_HEAP_OPTS:                         "-Xmx512m -Xms256m"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list > /dev/null 2>&1
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 40s
+    networks:
+      - cs-fte-net
+
+  zookeeper:
+    image: bitnami/zookeeper:3.9
+    container_name: cs-fte-zookeeper
+    restart: unless-stopped
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOO_HEAP_SIZE: 256
+    volumes:
+      - zookeeper-data:/bitnami/zookeeper
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - echo ruok | nc -w 3 127.0.0.1 2181 | grep -q imok
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - cs-fte-net
+
+volumes:
+  postgres-data:
+    driver: local
+  zookeeper-data:
+    driver: local
+  kafka-data:
+    driver: local
+  tmp-volume:
+  cache-volume:
+
+networks:
+  cs-fte-net:
+    driver: bridge

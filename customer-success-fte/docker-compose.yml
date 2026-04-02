@@ -1,0 +1,257 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Customer Success Digital FTE — Docker Compose with Dapr
+#
+# Services
+# ────────
+#   postgres         PostgreSQL 16 + pgvector extension
+#   zookeeper        Apache ZooKeeper (required by Kafka)
+#   kafka            Apache Kafka 3.7 message broker
+#   dapr-placement   Dapr placement service for actors
+#   temporal         Temporal workflow engine for Dapr Workflows
+#   fastapi          FastAPI application with Dapr sidecar (port 8000)
+#   worker           Kafka inbound message processor with Dapr
+#   response-handler Kafka outbound delivery handler with Dapr
+#
+# Quick start
+# ───────────
+#   cp .env.example .env        # fill in secrets
+#   docker compose up --build   # start everything
+#   docker compose logs -f      # tail all logs
+#
+# Dapr CLI commands
+# ─────────────────
+#   dapr list                    # list running Dapr apps
+#   dapr logs --app-id fastapi   # view Dapr logs for fastapi
+#   dapr invoke --app-id fastapi --method health  # invoke endpoint
+# ══════════════════════════════════════════════════════════════════════════════
+
+x-app-common: &app-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: runtime
+  restart: unless-stopped
+  env_file:
+    - .env
+  environment:
+    # Override host-local defaults with container-internal hostnames
+    DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-customer_success}"
+    KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    # Dapr configuration
+    DAPR_GRPC_ENDPOINT: "dapr-placement:50001"
+    DAPR_HTTP_ENDPOINT: "http://dapr-placement:3500"
+    DAPR_PUBSUB_NAME: "cs-pubsub"
+    DAPR_STATE_STORE: "cs-state"
+    DAPR_WORKFLOW_RUNTIME: "workflow-runtime"
+  volumes:
+    - ./credentials:/app/credentials:ro   # Gmail OAuth token files
+    - ./dapr/components:/dapr/components:ro
+    - ./dapr/configuration:/dapr/configuration:ro
+  networks:
+    - cs-fte-net
+  depends_on:
+    postgres:
+      condition: service_healthy
+    kafka:
+      condition: service_healthy
+    dapr-placement:
+      condition: service_started
+
+
+services:
+
+  # ── PostgreSQL 16 + pgvector ───────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cs-fte-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB:       ${POSTGRES_DB:-customer_success}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Init scripts run once on first boot, in alphabetical order
+      - ./db/00_extensions.sql:/docker-entrypoint-initdb.d/00_extensions.sql:ro
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-customer_success}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - cs-fte-net
+
+  # ── ZooKeeper ────────────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: cs-fte-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: "2181"
+      ZOOKEEPER_TICK_TIME: "2000"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-datalog:/var/lib/zookeeper/log
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: nc -z localhost 2181 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - cs-fte-net
+
+  # ── Apache Kafka 3.7 ─────────────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: cs-fte-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: "1"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: "3"
+    ports:
+      - "9094:9094"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: kafka-topics --bootstrap-server localhost:9092 --list || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 40s
+    networks:
+      - cs-fte-net
+
+  # ── Dapr Placement Service ───────────────────────────────────────────────────
+  dapr-placement:
+    image: daprio/dapr:1.14
+    container_name: cs-fte-dapr-placement
+    restart: unless-stopped
+    command: ["./placement", "-port", "50005"]
+    ports:
+      - "50005:50005"
+    networks:
+      - cs-fte-net
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "50005"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Temporal Workflow Engine (for Dapr Workflows) ────────────────────────────
+  temporal:
+    image: temporalio/auto-setup:1.22
+    container_name: cs-fte-temporal
+    restart: unless-stopped
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+    volumes:
+      - ./dapr/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cs-fte-net
+
+  # ── FastAPI application with Dapr sidecar ────────────────────────────────────
+  fastapi:
+    <<: *app-common
+    container_name: cs-fte-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+      - "3500:3500"  # Dapr HTTP endpoint
+    command: >
+      dapr run
+      --app-id fastapi
+      --app-port 8000
+      --dapr-grpc-port 50001
+      --dapr-http-port 3500
+      --placement-host-address dapr-placement:50005
+      --resources-path /dapr/components
+      --config /dapr/configuration/dapr-config.yaml
+      -- python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://localhost:8000/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  # ── Kafka inbound message worker with Dapr ───────────────────────────────────
+  worker:
+    <<: *app-common
+    container_name: cs-fte-worker
+    command: >
+      dapr run
+      --app-id worker
+      --dapr-grpc-port 50002
+      --placement-host-address dapr-placement:50005
+      --resources-path /dapr/components
+      --config /dapr/configuration/dapr-config.yaml
+      -- python -m app.worker
+    # Workers scale horizontally — Kafka distributes partitions automatically
+    # docker compose up --scale worker=3
+    depends_on:
+      - fastapi
+
+  # ── Kafka outbound response handler with Dapr ────────────────────────────────
+  response-handler:
+    <<: *app-common
+    container_name: cs-fte-response-handler
+    command: >
+      dapr run
+      --app-id response-handler
+      --dapr-grpc-port 50003
+      --placement-host-address dapr-placement:50005
+      --resources-path /dapr/components
+      --config /dapr/configuration/dapr-config.yaml
+      -- python -m app.response_handler
+    depends_on:
+      - fastapi
+
+
+# ── Named volumes ──────────────────────────────────────────────────────────────
+volumes:
+  postgres-data:
+    driver: local
+  zookeeper-data:
+    driver: local
+  zookeeper-datalog:
+    driver: local
+  kafka-data:
+    driver: local
+
+
+# ── Networks ───────────────────────────────────────────────────────────────────
+networks:
+  cs-fte-net:
+    driver: bridge

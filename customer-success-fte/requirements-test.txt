@@ -1,0 +1,20 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Test dependencies — Customer Success Digital FTE
+# Install alongside main deps: pip install -r requirements.txt -r requirements-test.txt
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Test framework ─────────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.24.0          # async test support
+pytest-cov==6.0.0               # coverage reporting
+pytest-mock==3.14.0             # mocker fixture (convenience wrapper for unittest.mock)
+pytest-timeout==2.3.1           # per-test timeout guard
+
+# ── HTTP test client ───────────────────────────────────────────────────────────
+httpx==0.28.1                   # AsyncClient for FastAPI integration tests (matches main req)
+
+# ── Load testing ──────────────────────────────────────────────────────────────
+locust==2.32.3                  # load test runner (locustfile.py)
+
+# ── Eval runner extras ─────────────────────────────────────────────────────────
+pyyaml==6.0.2                   # parse golden_dataset.yaml

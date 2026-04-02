@@ -1,0 +1,90 @@
+# Dapr components configuration
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: cs-pubsub
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+  - name: brokers
+    value: "kafka:9092"
+  - name: authType
+    value: "none"
+  - name: maxMessageBytes
+    value: 1048576
+  - name: concurrencyMode
+    value: parallel
+
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: cs-state
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+  - name: connectionString
+    secretKeyRef:
+      name: postgres-secret
+      key: connectionString
+  - name: tableName
+    value: dapr_state
+  - name: keyTableName
+    value: dapr_state_keys
+auth:
+  secretStore: kubernetes
+
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: workflow-runtime
+spec:
+  type: workflow.temporal
+  version: v1
+  metadata:
+  - name: workerAddress
+    value: "temporal:7233"
+  - name: taskQueue
+    value: "customer-support-workflows"
+  - name: maxConcurrentWorkflowTaskExecutions
+    value: "100"
+
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-binding
+spec:
+  type: bindings.kafka
+  version: v1
+  metadata:
+  - name: brokers
+    value: "kafka:9092"
+  - name: authType
+    value: "none"
+  - name: topics
+    value: "cs-fte.messages.inbound,cs-fte.messages.outbound"
+  - name: consumerGroup
+    value: "customer-success-fte"
+  - name: publishTopic
+    value: "cs-fte.messages.inbound"
+
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: whatsapp-binding
+spec:
+  type: bindings.http
+  version: v1
+  metadata:
+  - name: url
+    value: "https://graph.facebook.com/v17.0/PHONE_NUMBER_ID/messages"
+  - name: method
+    value: "POST"
+auth:
+  secretStore: kubernetes

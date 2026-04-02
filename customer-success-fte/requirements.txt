@@ -1,0 +1,65 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Customer Success Digital FTE — Python dependencies
+# All versions pinned for reproducible builds.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1         # [standard] pulls in uvloop + httptools
+python-multipart==0.0.12          # required for form-data / file upload parsing
+
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0                   # async PostgreSQL driver (C extension)
+pgvector==0.3.6                   # pgvector Python binding for SQLAlchemy
+
+
+# ── Settings & validation ─────────────────────────────────────────────────────
+pydantic==2.10.3
+pydantic[email]==2.10.3           # EmailStr support
+pydantic-settings==2.6.1          # .env file loading via BaseSettings
+python-dotenv==1.0.1              # .env parser (transitive dep of pydantic-settings)
+
+
+# ── Kafka ─────────────────────────────────────────────────────────────────────
+aiokafka==0.11.0                  # async Kafka producer + consumer
+
+
+# ── HTTP client ───────────────────────────────────────────────────────────────
+httpx==0.28.1                     # async HTTP (WhatsApp delivery, outbound calls)
+
+
+# ── Email ─────────────────────────────────────────────────────────────────────
+aiosmtplib==3.0.2                 # async SMTP for email delivery and notifications
+
+
+# ── Gmail integration ─────────────────────────────────────────────────────────
+google-api-python-client==2.154.0
+google-auth==2.37.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
+
+
+# ── OpenAI ────────────────────────────────────────────────────────────────────
+openai==1.70.0
+openai-agents==0.0.7              # OpenAI Agents SDK  (function_tool, Runner, Agent)
+
+
+# ── Anthropic (Claude) ────────────────────────────────────────────────────────
+anthropic==0.45.0                 # Claude API SDK
+
+
+# ── Redis (distributed rate limiting) ─────────────────────────────────────────
+redis==5.2.1                      # async Redis client for distributed rate limiting
+
+
+# ── Observability ─────────────────────────────────────────────────────────────
+structlog==24.4.0                 # structured / JSON logging
+prometheus-client==0.21.1         # /metrics endpoint (Prometheus text format)
+
+
+# ── Dapr Workflows ────────────────────────────────────────────────────────────
+dapr==1.15.0                      # Dapr Python SDK
+dapr-ext-workflow==1.15.0         # Dapr Workflows extension

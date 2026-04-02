@@ -1,0 +1,153 @@
+---
+# PostgreSQL extensions init script (runs once on first boot)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cs-fte-postgres-init
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: postgres
+data:
+  00_extensions.sql: |
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE EXTENSION IF NOT EXISTS vector;
+
+---
+# Headless Service — DNS for StatefulSet pod discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-fte-postgres-headless
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: postgres
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/component: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
+---
+# ClusterIP Service — stable endpoint for application pods
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-fte-postgres
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: postgres
+spec:
+  selector:
+    app.kubernetes.io/component: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cs-fte-postgres
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: cs-fte-postgres-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: customer-success-fte
+        app.kubernetes.io/component: postgres
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        fsGroup: 999            # postgres group owns /var/lib/postgresql/data
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: cs-fte-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cs-fte-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: cs-fte-config
+                  key: POSTGRES_DB
+            # Explicit PGDATA avoids "lost+found" permission issues on EBS volumes
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - customer_success
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - customer_success
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: postgres-init
+          configMap:
+            name: cs-fte-postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+        labels:
+          app.kubernetes.io/component: postgres
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 20Gi

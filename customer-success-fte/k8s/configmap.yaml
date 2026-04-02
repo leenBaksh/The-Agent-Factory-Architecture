@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cs-fte-config
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+data:
+  # ── Application ────────────────────────────────────────────────────────────
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  API_PORT: "8000"
+
+  # ── Database (non-sensitive) ────────────────────────────────────────────────
+  POSTGRES_USER: "postgres"
+  POSTGRES_DB: "customer_success"
+  POSTGRES_PORT: "5432"
+  DATABASE_URL: "postgresql+asyncpg://postgres:$(POSTGRES_PASSWORD)@cs-fte-postgres:5432/customer_success"
+  DB_POOL_SIZE: "10"
+  DB_MAX_OVERFLOW: "20"
+  DB_POOL_TIMEOUT: "30"
+  DB_POOL_RECYCLE: "1800"
+  DB_ECHO: "false"
+
+  # ── Kafka ───────────────────────────────────────────────────────────────────
+  KAFKA_BOOTSTRAP_SERVERS: "cs-fte-kafka:9092"
+  KAFKA_TOPIC_INBOUND: "cs-fte.messages.inbound"
+  KAFKA_TOPIC_OUTBOUND: "cs-fte.messages.outbound"
+  KAFKA_TOPIC_ESCALATIONS: "cs-fte.tickets.escalations"
+  KAFKA_TOPIC_DLQ: "cs-fte.messages.dlq"
+  KAFKA_CONSUMER_GROUP: "cs-fte-worker"
+
+  # ── OpenAI (non-sensitive) ──────────────────────────────────────────────────
+  OPENAI_MODEL: "gpt-4o"
+  OPENAI_EMBEDDING_MODEL: "text-embedding-3-small"
+  OPENAI_EMBEDDING_DIMENSIONS: "1536"
+
+  # ── CORS ────────────────────────────────────────────────────────────────────
+  CORS_ALLOWED_ORIGINS: '["https://your-domain.com"]'
+
+  # ── Gmail ───────────────────────────────────────────────────────────────────
+  GMAIL_CREDENTIALS_FILE: "/app/credentials/gmail_credentials.json"
+  GMAIL_TOKEN_FILE: "/app/credentials/gmail_token.json"
+  GMAIL_POLL_INTERVAL_SECONDS: "60"
+
+  # ── WhatsApp ────────────────────────────────────────────────────────────────
+  WHATSAPP_API_URL: "https://graph.facebook.com/v19.0"
+
+  # ── SMTP (non-sensitive) ────────────────────────────────────────────────────
+  SMTP_PORT: "587"
+  SMTP_USE_TLS: "true"
+
+  # ── SLA & escalation thresholds ─────────────────────────────────────────────
+  ESCALATION_SLA_HOURS: "4"
+  SLA_MONITOR_INTERVAL_MINUTES: "15"
+  SURVEY_RESPONSE_WINDOW_HOURS: "48"
+  AUTO_ESCALATION_CONFIDENCE_THRESHOLD: "0.6"
+  MAX_AI_RETRIES_BEFORE_ESCALATION: "3"

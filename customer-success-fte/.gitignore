@@ -1,0 +1,30 @@
+# Environment — NEVER commit real credentials
+.env
+.env.local
+.env.*.local
+
+# Credentials / OAuth tokens
+credentials/
+*.json
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp

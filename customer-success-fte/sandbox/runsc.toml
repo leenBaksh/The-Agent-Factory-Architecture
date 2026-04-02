@@ -1,0 +1,139 @@
+# gVisor Runtime Configuration
+# https://gvisor.dev/docs/user_guide/config/
+
+# General settings
+[runsc]
+  # Enable debug logging
+  debug = false
+  debug_log = ""
+  
+  # Log format (json or text)
+  log_format = "json"
+  
+  # Log to syslog
+  log_syslog = false
+  
+  # Panic on any error (debug only)
+  panic = false
+  
+  # Profile system calls
+  profile = false
+
+# Memory settings
+[runsc.memory]
+  # Total memory limit for the sandbox
+  # Set to 0 for unlimited (not recommended)
+  total_memory_limit = "512MB"
+  
+  # Enable memory overcommit
+  # Warning: Can lead to OOM kills
+  memory_overcommit = false
+
+# Network settings
+[runsc.network]
+  # Network stack type
+  # Options: "host", "sandbox", "none"
+  network_type = "sandbox"
+  
+  # Enable NAT
+  nat = true
+  
+  # Allow raw sockets (requires CAP_NET_RAW)
+  raw = false
+  
+  # Maximum number of open connections
+  max_connections = 1024
+  
+  # Connection timeout
+  connection_timeout = "30s"
+
+# Filesystem settings
+[runsc.filesystem]
+  # Enable host network filesystem (9p)
+  # Warning: Can expose host filesystem
+  enable_host_netfs = false
+  
+  # Filesystem buffer size
+  # Larger buffers improve performance but use more memory
+  fs_buffer_size = "4MB"
+  
+  # Enable extended attributes
+  xattr = true
+
+# Security settings
+[runsc.security]
+  # Enable seccomp filtering
+  seccomp = true
+  
+  # Seccomp profile path (empty = use built-in)
+  seccomp_profile = ""
+  
+  # Capabilities to keep
+  # Empty = drop all capabilities
+  keep_capabilities = [
+    "CAP_NET_BIND_SERVICE",
+  ]
+  
+  # Capabilities to explicitly drop
+  drop_capabilities = [
+    "CAP_SYS_ADMIN",
+    "CAP_SYS_PTRACE",
+    "CAP_SYS_MODULE",
+    "CAP_SYS_RAWIO",
+    "CAP_SYS_BOOT",
+    "CAP_NET_ADMIN",
+    "CAP_NET_RAW",
+    "CAP_MKNOD",
+    "CAP_SETUID",
+    "CAP_SETGID",
+  ]
+  
+  # Enable user namespace
+  # Provides additional isolation
+  user_namespace = true
+  
+  # Enable PID namespace
+  # Isolates process IDs
+  pid_namespace = true
+  
+  # Enable IPC namespace
+  # Isolates inter-process communication
+  ipc_namespace = true
+  
+  # Enable UTS namespace
+  # Isolates hostname
+  uts_namespace = true
+
+# Resource limits
+[runsc.limits]
+  # Maximum number of open files
+  nofile = 1024
+  
+  # Maximum number of processes
+  nproc = 64
+  
+  # Maximum file size
+  fsize = "100MB"
+  
+  # Maximum CPU time (seconds)
+  cpu_time = 300
+  
+  # Maximum address space
+  as = "256MB"
+
+# Debug and profiling (disable in production)
+[runsc.debug]
+  # Enable stack tracing on errors
+  stack_trace = true
+  
+  # Enable core dumps
+  core_dump = false
+  
+  # Debug console port
+  debug_console_port = 0
+  
+  # Enable pprof
+  pprof = false
+  
+  # pprof port
+  pprof_port = 6060

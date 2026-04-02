@@ -1,0 +1,405 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Golden Dataset — Customer Success Digital FTE
+#
+# 25 test scenarios covering the full range of customer interactions.
+# Each scenario defines:
+#   id:               unique identifier
+#   description:      what the scenario tests
+#   channel:          web | gmail | whatsapp
+#   input:            customer message
+#   expected:
+#     should_escalate:     true/false
+#     escalation_reason:   keyword | sentiment | sla | confidence (optional)
+#     should_create_ticket: true/false
+#     response_contains:   list of strings that must appear in the agent's reply
+#     response_must_not_contain: list of strings that must NOT appear
+#     should_search_kb:    true/false — agent should call search_knowledge_base
+#     category_tag:        billing | technical | shipping | account | general | escalation
+# ══════════════════════════════════════════════════════════════════════════════
+
+version: "1.0"
+dataset:
+
+  # ── Order & Shipping ────────────────────────────────────────────────────────
+
+  - id: EVAL-001
+    description: Simple order status inquiry
+    channel: web
+    input: "Where is my order? I placed it 5 days ago, order number 54321."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "order"
+      response_must_not_contain:
+        - "lawsuit"
+        - "legal"
+      should_search_kb: false
+      category_tag: shipping
+
+  - id: EVAL-002
+    description: Shipping delay complaint
+    channel: whatsapp
+    input: "My package was supposed to arrive last Monday and it still hasn't come. This is unacceptable."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "sorry"
+        - "delay"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: shipping
+
+  - id: EVAL-003
+    description: Wrong item received
+    channel: web
+    input: "I ordered a blue XL shirt but received a red small. I need the correct item."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "wrong"
+        - "replace"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: shipping
+
+  # ── Billing & Payments ──────────────────────────────────────────────────────
+
+  - id: EVAL-004
+    description: Duplicate charge complaint
+    channel: web
+    input: "I was charged twice for my subscription this month. I need a refund for the duplicate charge."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "charge"
+        - "refund"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: billing
+
+  - id: EVAL-005
+    description: Billing inquiry — invoice request
+    channel: gmail
+    input: "Can you send me an invoice for my January subscription? I need it for my accountant."
+    expected:
+      should_escalate: false
+      should_create_ticket: false
+      response_contains:
+        - "invoice"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: billing
+
+  - id: EVAL-006
+    description: Subscription plan inquiry
+    channel: web
+    input: "What are the differences between the Starter, Pro, and Enterprise plans?"
+    expected:
+      should_escalate: false
+      should_create_ticket: false
+      response_contains:
+        - "plan"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: billing
+
+  # ── Account & Access ────────────────────────────────────────────────────────
+
+  - id: EVAL-007
+    description: Password reset request
+    channel: web
+    input: "I forgot my password and the reset email isn't arriving. I've checked my spam folder."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "password"
+        - "reset"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: account
+
+  - id: EVAL-008
+    description: Account locked after failed logins
+    channel: web
+    input: "My account is locked. I tried logging in 5 times and now it says 'account suspended'."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "account"
+        - "unlock"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: account
+
+  - id: EVAL-009
+    description: Request to update contact email
+    channel: gmail
+    input: "I need to change the email address on my account from old@example.com to new@example.com."
+    expected:
+      should_escalate: false
+      should_create_ticket: false
+      response_contains:
+        - "email"
+        - "update"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: account
+
+  # ── Technical Support ────────────────────────────────────────────────────────
+
+  - id: EVAL-010
+    description: App crashes on launch
+    channel: web
+    input: "Your mobile app crashes immediately when I open it on my iPhone 15. I've tried reinstalling three times."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "crash"
+        - "issue"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: technical
+
+  - id: EVAL-011
+    description: API integration not working
+    channel: web
+    input: "I'm getting a 401 error when calling your REST API even though I'm using the correct API key."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "api"
+        - "401"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: technical
+
+  - id: EVAL-012
+    description: Feature not working as documented
+    channel: github
+    input: "The bulk export feature documented at your help page is not available in my account even though I'm on the Pro plan."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "export"
+        - "feature"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: technical
+
+  # ── Escalation — Legal Keywords ──────────────────────────────────────────────
+
+  - id: EVAL-013
+    description: Legal threat — lawsuit
+    channel: web
+    input: "I am going to file a lawsuit against your company for breach of contract. I've already spoken to my attorney."
+    expected:
+      should_escalate: true
+      escalation_reason: keyword
+      should_create_ticket: true
+      response_contains:
+        - "team"
+        - "specialist"
+      response_must_not_contain:
+        - "no problem"
+        - "certainly"
+      should_search_kb: false
+      category_tag: escalation
+
+  - id: EVAL-014
+    description: Legal threat — chargeback
+    channel: whatsapp
+    input: "I'm filing a chargeback with my credit card company. This is fraud."
+    expected:
+      should_escalate: true
+      escalation_reason: keyword
+      should_create_ticket: true
+      response_contains:
+        - "team"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: escalation
+
+  - id: EVAL-015
+    description: GDPR / data privacy escalation
+    channel: gmail
+    input: "This is a GDPR data access request. Please provide all personal data you hold about me within 30 days."
+    expected:
+      should_escalate: true
+      escalation_reason: keyword
+      should_create_ticket: true
+      response_contains:
+        - "privacy"
+        - "team"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: escalation
+
+  # ── Escalation — Sentiment ───────────────────────────────────────────────────
+
+  - id: EVAL-016
+    description: Extreme anger — sentiment escalation
+    channel: web
+    input: >
+      I AM ABSOLUTELY FURIOUS!!!! This is the WORST company I have EVER dealt with in my
+      ENTIRE life. Your service is a complete DISASTER and I am DONE with you people.
+      I want to speak to someone RIGHT NOW!!!
+    expected:
+      should_escalate: true
+      escalation_reason: sentiment
+      should_create_ticket: true
+      response_contains:
+        - "understand"
+        - "team"
+      response_must_not_contain:
+        - "Unfortunately"
+      should_search_kb: false
+      category_tag: escalation
+
+  # ── Positive Interactions ────────────────────────────────────────────────────
+
+  - id: EVAL-017
+    description: Positive feedback
+    channel: web
+    input: "Just wanted to say your support team is amazing! My issue was resolved in minutes. Thank you!"
+    expected:
+      should_escalate: false
+      should_create_ticket: false
+      response_contains:
+        - "thank"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: general
+
+  - id: EVAL-018
+    description: Feature request
+    channel: web
+    input: "Would it be possible to add a dark mode to your web app? It would be very helpful for evening use."
+    expected:
+      should_escalate: false
+      should_create_ticket: false
+      response_contains:
+        - "feedback"
+        - "request"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: general
+
+  # ── Survey Responses ─────────────────────────────────────────────────────────
+
+  - id: EVAL-019
+    description: High satisfaction survey response (5/5)
+    channel: web
+    input: "Rating: 5/5. Excellent support, resolved immediately!"
+    expected:
+      should_escalate: false
+      should_create_ticket: false
+      is_survey_response: true
+      expected_rating: 5
+      response_contains:
+        - "thank"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: general
+
+  - id: EVAL-020
+    description: Low satisfaction survey response (1/5) — reopen ticket
+    channel: web
+    input: "Survey: 1 out of 5. My issue was NOT resolved. Still broken."
+    expected:
+      should_escalate: true
+      should_create_ticket: false
+      is_survey_response: true
+      expected_rating: 1
+      should_reopen_ticket: true
+      response_contains:
+        - "sorry"
+        - "team"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: escalation
+
+  # ── Cancellation ─────────────────────────────────────────────────────────────
+
+  - id: EVAL-021
+    description: Subscription cancellation request
+    channel: web
+    input: "I'd like to cancel my Pro subscription. Please process this immediately."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains:
+        - "cancel"
+        - "subscription"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: billing
+
+  # ── Edge Cases ───────────────────────────────────────────────────────────────
+
+  - id: EVAL-022
+    description: Very short / ambiguous message
+    channel: whatsapp
+    input: "Help"
+    expected:
+      should_escalate: false
+      should_create_ticket: false
+      response_contains:
+        - "help"
+        - "how"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: general
+
+  - id: EVAL-023
+    description: Non-English message (Spanish)
+    channel: whatsapp
+    input: "Hola, necesito ayuda con mi pedido. No ha llegado todavía."
+    expected:
+      should_escalate: false
+      should_create_ticket: true
+      response_contains: []
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: shipping
+
+  - id: EVAL-024
+    description: Data breach notification follow-up
+    channel: gmail
+    input: "I received your email about a security incident. What data of mine was exposed and what should I do?"
+    expected:
+      should_escalate: true
+      escalation_reason: keyword
+      should_create_ticket: true
+      response_contains:
+        - "security"
+        - "team"
+      response_must_not_contain: []
+      should_search_kb: false
+      category_tag: escalation
+
+  - id: EVAL-025
+    description: Urgent medical equipment — high priority
+    channel: web
+    input: >
+      I urgently need technical support for your device management software.
+      We are a hospital and the software is not connecting to our patient monitoring
+      equipment. This is affecting patient care.
+    expected:
+      should_escalate: true
+      escalation_reason: confidence
+      should_create_ticket: true
+      response_contains:
+        - "urgent"
+        - "team"
+      response_must_not_contain: []
+      should_search_kb: true
+      category_tag: escalation

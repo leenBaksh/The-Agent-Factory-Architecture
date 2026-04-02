@@ -1,0 +1,28 @@
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: customer-success-fte-config
+  namespace: default
+spec:
+  tracing:
+    samplingRate: "1"
+    zipkin:
+      endpointAddress: "http://zipkin:9411/api/v2/spans"
+  metric:
+    enabled: true
+  secrets:
+    scopes:
+      - storeName: kubernetes
+        defaultAccess: allow
+  workflow:
+    workflowStateStore: cs-state
+
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: customer-success-fte
+spec:
+  type: middleware.http.opentelemetry
+  version: v1
+  metadata: []

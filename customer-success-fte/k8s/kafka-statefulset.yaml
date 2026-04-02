@@ -1,0 +1,249 @@
+---
+# ── ZooKeeper ──────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-fte-zookeeper-headless
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: zookeeper
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/component: zookeeper
+  ports:
+    - name: client
+      port: 2181
+    - name: follower
+      port: 2888
+    - name: election
+      port: 3888
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-fte-zookeeper
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: zookeeper
+spec:
+  selector:
+    app.kubernetes.io/component: zookeeper
+  ports:
+    - name: client
+      port: 2181
+      targetPort: 2181
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cs-fte-zookeeper
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: zookeeper
+spec:
+  serviceName: cs-fte-zookeeper-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: zookeeper
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: customer-success-fte
+        app.kubernetes.io/component: zookeeper
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: zookeeper
+          image: bitnami/zookeeper:3.9
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: client
+              containerPort: 2181
+            - name: follower
+              containerPort: 2888
+            - name: election
+              containerPort: 3888
+          env:
+            - name: ALLOW_ANONYMOUS_LOGIN
+              value: "yes"
+            - name: ZOO_HEAP_SIZE
+              value: "256"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - echo ruok | nc -w 3 127.0.0.1 2181 | grep -q imok
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - echo ruok | nc -w 3 127.0.0.1 2181 | grep -q imok
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: zookeeper-data
+              mountPath: /bitnami/zookeeper
+  volumeClaimTemplates:
+    - metadata:
+        name: zookeeper-data
+        labels:
+          app.kubernetes.io/component: zookeeper
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 5Gi
+
+---
+# ── Apache Kafka ───────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-fte-kafka-headless
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: kafka
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/component: kafka
+  ports:
+    - name: kafka-internal
+      port: 9092
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-fte-kafka
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: kafka
+spec:
+  selector:
+    app.kubernetes.io/component: kafka
+  ports:
+    - name: kafka-internal
+      port: 9092
+      targetPort: 9092
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cs-fte-kafka
+  namespace: cs-fte
+  labels:
+    app.kubernetes.io/name: customer-success-fte
+    app.kubernetes.io/component: kafka
+spec:
+  serviceName: cs-fte-kafka-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kafka
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: customer-success-fte
+        app.kubernetes.io/component: kafka
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: kafka
+          image: bitnami/kafka:3.7
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: kafka-internal
+              containerPort: 9092
+          env:
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: "cs-fte-zookeeper:2181"
+            - name: KAFKA_CFG_BROKER_ID
+              value: "1"
+            - name: KAFKA_CFG_LISTENERS
+              value: "INTERNAL://:9092"
+            - name: KAFKA_CFG_ADVERTISED_LISTENERS
+              value: "INTERNAL://cs-fte-kafka:9092"
+            - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "INTERNAL:PLAINTEXT"
+            - name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME
+              value: "INTERNAL"
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+            - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - name: KAFKA_CFG_NUM_PARTITIONS
+              value: "3"
+            - name: KAFKA_CFG_DEFAULT_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_CFG_LOG_RETENTION_HOURS
+              value: "168"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx512m -Xms256m"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list > /dev/null 2>&1
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list > /dev/null 2>&1
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /bitnami/kafka
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+        labels:
+          app.kubernetes.io/component: kafka
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 20Gi

@@ -1,0 +1,91 @@
+# Dockerfile for gVisor-sandboxed Customer Success FTE
+# This Dockerfile creates a minimal, security-hardened image for running in gVisor
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Build Stage
+# ══════════════════════════════════════════════════════════════════════════════
+
+FROM python:3.12-slim as builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Runtime Stage (Optimized for gVisor)
+# ══════════════════════════════════════════════════════════════════════════════
+
+FROM python:3.12-slim as runtime
+
+# Security: Create non-root user
+RUN groupadd --gid 1000 appgroup && \
+    useradd --uid 1000 --gid appgroup --shell /bin/false --create-home appuser
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /home/appuser/.local
+
+# Copy application code
+COPY --chown=appuser:appgroup app/ ./app/
+
+# Copy database schema
+COPY --chown=appuser:appgroup db/ ./db/
+
+# Copy sandbox configurations
+COPY --chown=appuser:appgroup sandbox/ ./sandbox/
+
+# Set environment variables
+ENV PATH=/home/appuser/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOME=/home/appuser
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/.cache /tmp && \
+    chown -R appuser:appgroup /app /app/.cache /tmp && \
+    chmod -R 755 /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Run the application
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Security Notes
+# ══════════════════════════════════════════════════════════════════════════════
+# 
+# This image is designed to run in gVisor sandbox with:
+# - Non-root user (UID 1000)
+# - Read-only root filesystem
+# - Dropped capabilities
+# - Seccomp profile
+# - Resource limits
+#
+# Run with:
+#   docker run --runtime=runsc \
+#     --read-only \
+#     --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+#     --tmpfs /app/.cache:rw,noexec,nosuid,size=32m \
+#     --cap-drop=ALL \
+#     --cap-add=NET_BIND_SERVICE \
+#     --security-opt=no-new-privileges:true \
+#     --memory=512m \
+#     --cpus=0.5 \
+#     customer-success-fte:latest
+# ══════════════════════════════════════════════════════════════════════════════
