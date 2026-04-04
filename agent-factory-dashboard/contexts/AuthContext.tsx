@@ -86,12 +86,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
+      // Extract name from email (before @)
+      const emailPrefix = email.split('@')[0];
+      // Convert to proper name (e.g., "john.doe" -> "John Doe")
+      const nameFromEmail = emailPrefix
+        .split(/[._-]/)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+
       // Create mock user
       const mockUser: User = {
         id: '1',
         email: email,
-        name: email.split('@')[0],
-        role: 'admin',
+        name: nameFromEmail,
+        role: 'Administrator',
       };
 
       // Store auth data

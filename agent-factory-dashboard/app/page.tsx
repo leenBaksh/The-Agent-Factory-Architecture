@@ -15,11 +15,11 @@ export default function Dashboard() {
 
   return (
     <>
-      <Header 
-        title="Dashboard" 
+      <Header
+        title="Dashboard"
         subtitle="Monitor your Digital FTEs and support metrics"
       />
-      
+
       {/* Error Banner */}
       {error && (
         <ErrorBanner
@@ -29,8 +29,8 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="p-6">
-        <div className="mx-auto max-w-7xl space-y-6">
+      <div className="p-4 sm:p-6">
+        <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
           {/* Metrics Overview */}
           <MetricsOverview />
 
@@ -38,14 +38,14 @@ export default function Dashboard() {
           <ChartsSection />
 
           {/* Bottom Section */}
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
             {/* Left - Recent Tickets */}
             <div className="lg:col-span-2">
               <RecentTickets />
             </div>
 
             {/* Right - SLA and FTE */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <SLABreachesPanel />
               <FTEInstancesPanel />
             </div>

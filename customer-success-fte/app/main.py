@@ -27,6 +27,7 @@ from app.database import engine
 from app.logging_config import configure_logging
 from app.routers import gmail, web_form, whatsapp
 from app.routers.metrics import router as metrics_router
+from app.routers.notifications import router as notifications_router
 from app.a2a.router import router as a2a_router
 from app.skills.router import router as skills_router
 from app.services.kafka_producer import kafka_producer
@@ -195,6 +196,7 @@ async def ready() -> dict:
 app.include_router(web_form.router, prefix="/api",      tags=["Web Form"])
 app.include_router(gmail.router,    prefix="/webhooks", tags=["Gmail"])
 app.include_router(whatsapp.router, prefix="/webhooks", tags=["WhatsApp"])
+app.include_router(notifications_router, prefix="/api", tags=["Notifications"])
 app.include_router(metrics_router)                        # /metrics, /metrics/dashboard
 
 # A2A Protocol (conditionally enabled)

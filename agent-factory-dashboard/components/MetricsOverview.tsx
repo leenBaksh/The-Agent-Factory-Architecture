@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
+  Activity,
 } from 'lucide-react';
 
 export function MetricsOverview() {
@@ -20,10 +21,36 @@ export function MetricsOverview() {
     return <MetricsSkeleton />;
   }
 
+  // Calculate SLA trend from history
+  const calculateSlaTrend = () => {
+    if (!metrics.metrics_history || metrics.metrics_history.length < 2) return { change: 0, trendUp: true, isOnTarget: true };
+    
+    const current = metrics.summary.sla_compliance_rate || 0;
+    const previous = metrics.metrics_history[metrics.metrics_history.length - 2]?.sla_compliance_rate || current;
+    const change = previous > 0 ? ((current - previous) / previous * 100).toFixed(1) : '0';
+    
+    return {
+      change: Math.abs(parseFloat(change)),
+      trendUp: current >= previous,
+      isOnTarget: current >= 95,
+    };
+  };
+
+  const slaTrend = calculateSlaTrend();
+
+  // Safe access to summary values with defaults
+  const summary = metrics.summary || {};
+  const totalTickets = summary.total_tickets || 0;
+  const openTickets = summary.open_tickets || 0;
+  const avgResolution = summary.avg_resolution_time_hours || 0;
+  const avgSatisfaction = summary.avg_satisfaction_rating || 0;
+  const slaCompliance = summary.sla_compliance_rate || 0;
+  const conversations24h = summary.total_conversations_24h || 0;
+
   const statCards = [
     {
       title: 'Total Tickets',
-      value: metrics.summary.total_tickets.toLocaleString(),
+      value: totalTickets.toLocaleString(),
       trend: '+12.5%',
       trendLabel: 'vs last week',
       trendUp: true,
@@ -32,7 +59,7 @@ export function MetricsOverview() {
     },
     {
       title: 'Open Tickets',
-      value: metrics.summary.open_tickets.toString(),
+      value: openTickets.toString(),
       trend: '-3',
       trendLabel: 'vs yesterday',
       trendUp: true,
@@ -41,16 +68,16 @@ export function MetricsOverview() {
     },
     {
       title: 'Avg Resolution',
-      value: `${metrics.summary.avg_resolution_time_hours}h`,
+      value: `${avgResolution}h`,
       trend: '-15%',
       trendLabel: 'improvement',
       trendUp: true,
       icon: Clock,
-      iconBg: 'icon-circle-green',
+      iconBg: 'icon-circle-blue',
     },
     {
       title: 'Satisfaction',
-      value: metrics.summary.avg_satisfaction_rating.toFixed(1),
+      value: avgSatisfaction.toFixed(1),
       trend: '+0.3',
       trendLabel: 'vs last week',
       trendUp: true,
@@ -59,16 +86,17 @@ export function MetricsOverview() {
     },
     {
       title: 'SLA Compliance',
-      value: `${metrics.summary.sla_compliance_rate}%`,
-      trend: metrics.summary.sla_compliance_rate >= 95 ? 'On target' : 'Below target',
-      trendLabel: 'target: 95%',
-      trendUp: metrics.summary.sla_compliance_rate >= 95,
+      value: `${slaCompliance.toFixed(1)}%`,
+      trend: slaTrend.isOnTarget ? `+${slaTrend.change}%` : `-${slaTrend.change}%`,
+      trendLabel: slaTrend.isOnTarget ? 'vs last week' : 'needs attention',
+      trendUp: slaTrend.trendUp && slaTrend.isOnTarget,
       icon: AlertTriangle,
-      iconBg: metrics.summary.sla_compliance_rate >= 95 ? 'icon-circle-green' : 'icon-circle-red',
+      iconBg: slaTrend.isOnTarget ? 'icon-circle-indigo' : 'icon-circle-red',
+      sparkline: metrics.metrics_history?.slice(-7).map((m: any) => m.sla_compliance_rate || 0) || [],
     },
     {
       title: 'Conversations (24h)',
-      value: metrics.summary.total_conversations_24h.toLocaleString(),
+      value: conversations24h.toLocaleString(),
       trend: '+8%',
       trendLabel: 'vs yesterday',
       trendUp: true,
@@ -104,13 +132,37 @@ export function MetricsOverview() {
             </div>
 
             {/* Trend */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-3">
               <span className={`stat-change ${trendColor} text-sm font-medium`}>
                 <TrendIcon className="w-4 h-4" />
                 {stat.trend}
               </span>
               <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{stat.trendLabel}</span>
             </div>
+
+            {/* Sparkline for SLA Compliance */}
+            {stat.sparkline && stat.sparkline.length > 0 && (
+              <div className="flex items-end gap-1 h-12 pt-3 border-t border-slate-100 dark:border-slate-700">
+                {stat.sparkline.map((value: number, i: number) => {
+                  const height = Math.max((value / 100) * 100, 10);
+                  const isLast = i === stat.sparkline.length - 1;
+                  const isGood = value >= 95;
+                  
+                  return (
+                    <div
+                      key={i}
+                      className={`flex-1 rounded-t transition-all duration-300 ${
+                        isGood 
+                          ? 'bg-gradient-to-t from-green-500 to-emerald-400' 
+                          : 'bg-gradient-to-t from-red-500 to-rose-400'
+                      } ${isLast ? 'opacity-100 shadow-lg' : 'opacity-70 hover:opacity-100'}`}
+                      style={{ height: `${height}%` }}
+                      title={`${value.toFixed(1)}%`}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}

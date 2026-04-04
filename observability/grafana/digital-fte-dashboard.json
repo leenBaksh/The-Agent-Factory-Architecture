@@ -1,0 +1,245 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Digital FTE Overview",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 1
+    },
+    {
+      "title": "Tasks Processed (24h)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(increase(fte_tasks_processed_total[24h]))",
+          "legendFormat": "Tasks"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 100},
+              {"color": "red", "value": 500}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Average Processing Time",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+      "id": 3,
+      "targets": [
+        {
+          "expr": "avg(fte_task_duration_seconds)",
+          "legendFormat": "Seconds"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 30},
+              {"color": "red", "value": 60}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "SLA Compliance Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(fte_sla_compliant_total) / sum(fte_tasks_processed_total) * 100",
+          "legendFormat": "%"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 90},
+              {"color": "green", "value": 95}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Error Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+      "id": 5,
+      "targets": [
+        {
+          "expr": "sum(increase(fte_errors_total[1h])) / sum(increase(fte_tasks_processed_total[1h])) * 100",
+          "legendFormat": "%"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Task Throughput (tasks/min)",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+      "id": 6,
+      "targets": [
+        {
+          "expr": "rate(fte_tasks_processed_total[5m]) * 60",
+          "legendFormat": "{{fte_type}}"
+        }
+      ],
+      "yAxes": [
+        {"label": "Tasks/min", "format": "short"}
+      ]
+    },
+    {
+      "title": "Processing Time Distribution",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+      "id": 7,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(fte_task_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.90, rate(fte_task_duration_seconds_bucket[5m]))",
+          "legendFormat": "p90"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(fte_task_duration_seconds_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ],
+      "yAxes": [
+        {"label": "Seconds", "format": "s"}
+      ]
+    },
+    {
+      "title": "LLM Token Usage & Cost",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 13},
+      "id": 8,
+      "targets": [
+        {
+          "expr": "sum(increase(llm_tokens_total[1h]))",
+          "legendFormat": "Tokens ({{direction}})"
+        }
+      ],
+      "yAxes": [
+        {"label": "Tokens", "format": "short"}
+      ]
+    },
+    {
+      "title": "Active FTE Instances",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13},
+      "id": 9,
+      "targets": [
+        {
+          "expr": "count(fte_instance_status{status=\"running\"})",
+          "legendFormat": "Running"
+        },
+        {
+          "expr": "count(fte_instance_status{status=\"stopped\"})",
+          "legendFormat": "Stopped"
+        },
+        {
+          "expr": "count(fte_instance_status{status=\"error\"})",
+          "legendFormat": "Error"
+        }
+      ]
+    },
+    {
+      "title": "A2A Protocol Exchanges",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 21},
+      "id": 10,
+      "targets": [
+        {
+          "expr": "rate(a2a_tasks_sent_total[5m])",
+          "legendFormat": "Tasks Sent"
+        },
+        {
+          "expr": "rate(a2a_tasks_received_total[5m])",
+          "legendFormat": "Tasks Received"
+        },
+        {
+          "expr": "rate(a2a_tasks_completed_total[5m])",
+          "legendFormat": "Tasks Completed"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": ["digital-fte", "agent-factory"],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(kube_namespace_labels, namespace)",
+        "current": {"text": "digital-ftes", "value": "digital-ftes"}
+      },
+      {
+        "name": "fte_type",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(fte_tasks_processed_total, fte_type)",
+        "multi": true,
+        "includeAll": true
+      }
+    ]
+  },
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Digital FTE Dashboard",
+  "uid": "digital-fte-overview",
+  "version": 1
+}

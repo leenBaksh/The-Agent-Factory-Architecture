@@ -126,7 +126,7 @@ export function ChartsSection() {
             <h3 className="chart-title text-slate-900 dark:text-white text-lg font-bold">Performance Metrics</h3>
             <p className="chart-subtitle text-slate-500 dark:text-slate-400 text-sm font-medium mt-0.5">Response times in minutes</p>
           </div>
-          <div className="icon-circle icon-circle-green">
+          <div className="icon-circle icon-circle-blue">
             <Activity className="w-5 h-5" />
           </div>
         </div>

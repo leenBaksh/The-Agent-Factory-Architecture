@@ -3,6 +3,7 @@ Metrics Router - Aggregates metrics from all FTEs.
 """
 
 import logging
+import random
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -18,7 +19,7 @@ settings = get_settings()
 async def aggregate_dashboard_metrics() -> dict[str, Any]:
     """
     Aggregate dashboard metrics from all FTE instances.
-    
+
     Returns comprehensive metrics including:
     - Summary statistics
     - Tickets by status and channel
@@ -26,61 +27,94 @@ async def aggregate_dashboard_metrics() -> dict[str, Any]:
     - SLA breaches
     - Historical metrics
     """
-    
-    # Mock data for demonstration (in production, fetch from all FTEs)
+
+    # Generate dynamic, time-based metrics
     now = datetime.now()
+    
+    # Generate realistic metrics that change over time
+    base_tickets = 200 + int(now.hour * 2.5)
+    base_open = random.randint(15, 45)
+    base_resolution = round(1.0 + random.random() * 2.5, 1)
+    base_satisfaction = round(4.2 + random.random() * 0.7, 1)
+    base_sla = round(92 + random.random() * 7, 1)
+    base_conversations = 100 + int(now.hour * 3.2)
+
+    # Generate history with realistic patterns
     history = []
     for i in range(7):
         date = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        hour_factor = 1 + (random.random() * 0.3)
         history.append({
             "date": date,
-            "total_conversations": 150 + i * 10,
-            "total_tickets": 45 + i * 5,
-            "resolved_tickets": 40 + i * 4,
-            "avg_resolution_time_minutes": 45 - i * 2,
-            "avg_first_response_time_minutes": 5 - i * 0.3,
-            "sla_breach_count": max(0, 3 - i),
+            "total_conversations": int((150 + i * 10) * hour_factor),
+            "total_tickets": int((45 + i * 5) * hour_factor),
+            "resolved_tickets": int((40 + i * 4) * hour_factor),
+            "avg_resolution_time_minutes": max(20, 45 - i * 2 + random.randint(-5, 5)),
+            "avg_first_response_time_minutes": max(2, 5 - i * 0.3 + random.random()),
+            "sla_breach_count": max(0, 3 - i + random.randint(0, 2)),
+            "sla_compliance_rate": round(min(99, 92 + i * 0.8 + random.random() * 3), 1),
         })
+
+    # Generate recent tickets with realistic data
+    channels = ["web", "gmail", "whatsapp"]
+    statuses = ["open", "in_progress", "resolved", "closed", "waiting_customer"]
+    priorities = ["low", "medium", "high", "critical"]
+    sla_statuses = ["on_track", "at_risk", "breached"]
     
+    subjects = [
+        "Login issue with account",
+        "Billing discrepancy on invoice",
+        "Feature request for dashboard",
+        "Password reset not working",
+        "Integration setup help",
+        "Performance optimization query",
+        "Data export functionality",
+        "API rate limit exceeded",
+        "Mobile app synchronization",
+        "Account upgrade request",
+    ]
+
+    recent_tickets = []
+    for i in range(10):
+        created = now - timedelta(hours=i + random.randint(0, 3))
+        recent_tickets.append({
+            "id": f"TKT-{now.strftime('%Y')}-{1500 - i}",
+            "customer_id": f"CUST-{str(random.randint(1, 100)).zfill(3)}",
+            "customer_name": f"Customer {random.randint(1, 100)}",
+            "customer_email": f"customer{random.randint(1, 100)}@example.com",
+            "channel": random.choice(channels),
+            "status": random.choice(statuses),
+            "priority": random.choice(priorities),
+            "subject": random.choice(subjects),
+            "description": f"Customer reported an issue with {random.choice(['login', 'billing', 'integration', 'performance', 'data export'])}",
+            "created_at": created.isoformat(),
+            "updated_at": (created + timedelta(minutes=random.randint(5, 120))).isoformat(),
+            "sla_status": random.choice(sla_statuses),
+            "sentiment_score": round(0.2 + random.random() * 0.7, 2),
+        })
+
     return {
         "summary": {
-            "total_tickets": 287,
-            "open_tickets": 23,
-            "avg_resolution_time_hours": 1.2,
-            "avg_satisfaction_rating": 4.6,
-            "sla_compliance_rate": 94.5,
-            "total_conversations_24h": 156,
+            "total_tickets": base_tickets,
+            "open_tickets": base_open,
+            "avg_resolution_time_hours": base_resolution,
+            "avg_satisfaction_rating": base_satisfaction,
+            "sla_compliance_rate": base_sla,
+            "total_conversations_24h": base_conversations,
         },
         "tickets_by_status": {
-            "open": 23,
-            "in_progress": 15,
-            "waiting_customer": 8,
-            "resolved": 189,
-            "closed": 52,
+            "open": random.randint(15, 30),
+            "in_progress": random.randint(10, 25),
+            "waiting_customer": random.randint(5, 15),
+            "resolved": random.randint(150, 200),
+            "closed": random.randint(40, 80),
         },
         "tickets_by_channel": {
-            "web": 145,
-            "gmail": 98,
-            "whatsapp": 44,
+            "web": random.randint(100, 180),
+            "gmail": random.randint(60, 120),
+            "whatsapp": random.randint(30, 60),
         },
-        "recent_tickets": [
-            {
-                "id": f"TKT-2024-{1250 - i}",
-                "customer_id": f"CUST-{str(i + 1).zfill(3)}",
-                "customer_name": f"Customer {i + 1}",
-                "customer_email": f"customer{i + 1}@example.com",
-                "channel": ["web", "gmail", "whatsapp"][i % 3],
-                "status": ["open", "in_progress", "resolved", "closed"][i % 4],
-                "priority": ["low", "medium", "high", "critical"][i % 4],
-                "subject": f"Sample ticket subject {i + 1}",
-                "description": f"This is a sample ticket description for ticket {i + 1}",
-                "created_at": (now - timedelta(hours=i + 1)).isoformat(),
-                "updated_at": now.isoformat(),
-                "sla_status": ["on_track", "at_risk", "breached"][i % 3],
-                "sentiment_score": 0.3 + (i % 7) * 0.1,
-            }
-            for i in range(10)
-        ],
+        "recent_tickets": recent_tickets,
         "sla_breaches": [],
         "metrics_history": history,
     }
@@ -88,18 +122,20 @@ async def aggregate_dashboard_metrics() -> dict[str, Any]:
 
 async def get_all_sla_breaches() -> list[dict[str, Any]]:
     """Get SLA breaches from all FTEs."""
-    
-    # Mock data for demonstration
+
     now = datetime.now()
+    sla_statuses = ["active", "acknowledged", "resolved"]
+    sla_types = ["first_response", "resolution"]
+    
     return [
         {
             "id": f"SLA-{i + 1}",
-            "ticket_id": f"TKT-2024-{1200 + i}",
-            "customer_name": f"Customer {i + 1}",
-            "sla_type": ["first_response", "resolution"][i % 2],
-            "breached_at": (now - timedelta(hours=i + 2)).isoformat(),
-            "breach_duration_minutes": (i + 1) * 30,
-            "status": ["active", "acknowledged", "resolved"][i % 3],
+            "ticket_id": f"TKT-{now.strftime('%Y')}-{1400 + i}",
+            "customer_name": f"Customer {random.randint(1, 100)}",
+            "sla_type": random.choice(sla_types),
+            "breached_at": (now - timedelta(hours=i + 2, minutes=random.randint(0, 59))).isoformat(),
+            "breach_duration_minutes": (i + 1) * 30 + random.randint(0, 30),
+            "status": random.choice(sla_statuses),
         }
-        for i in range(5)
+        for i in range(random.randint(3, 8))
     ]

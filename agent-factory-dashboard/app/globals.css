@@ -238,52 +238,70 @@ p {
            dark:border-slate-700;
   }
 
-  /* Sidebar */
+  /* Sidebar - Modern Behance Style with Responsive & Collapsible */
   .sidebar {
-    @apply fixed left-0 top-0 h-full w-72 bg-white border-r border-slate-200
-           flex flex-col z-50
-           dark:bg-slate-800 dark:border-slate-700;
+    @apply fixed left-0 top-0 h-full bg-gradient-to-b from-white via-slate-50 to-white border-r border-slate-200
+           flex flex-col z-50 backdrop-blur-xl transition-all duration-300 ease-in-out
+           dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 dark:border-slate-700;
   }
 
   .sidebar-header {
-    @apply px-6 py-5 border-b border-slate-200
-           dark:border-slate-700;
+    @apply px-4 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-50 via-purple-50 to-transparent
+           dark:border-slate-700 dark:from-indigo-900/20 dark:via-purple-900/20;
   }
 
   .sidebar-nav {
-    @apply flex-1 px-4 py-6 space-y-1 overflow-y-auto;
+    @apply flex-1 px-2 py-3 space-y-4 overflow-y-auto;
   }
 
   .nav-section {
-    @apply mb-6;
-  }
-
-  .nav-section-title {
-    @apply px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600
-           dark:text-slate-300;
+    @apply mb-2;
   }
 
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg
-           text-sm font-medium text-slate-700
+    @apply flex items-center gap-2.5 px-2.5 py-2 rounded-lg
+           text-xs font-medium text-slate-600
            transition-all duration-200
-           hover:bg-slate-50 hover:text-slate-900
-           dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white;
+           hover:text-slate-900
+           dark:text-slate-400 dark:hover:text-white;
   }
 
   .nav-item-active {
-    @apply bg-indigo-50 text-indigo-700
-           dark:bg-indigo-900/30 dark:text-indigo-400;
+    @apply bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent
+           text-indigo-600 dark:text-indigo-400
+           font-semibold;
   }
 
   .nav-item-icon {
-    @apply w-5 h-5 flex-shrink-0;
+    @apply w-5 h-5 flex-shrink-0 transition-colors duration-200;
   }
 
-  /* Header */
+  /* Header - Modern Behance Style with Responsive */
   .header {
-    @apply sticky top-0 z-40 bg-white border-b border-slate-200
-           dark:bg-slate-800 dark:border-slate-700;
+    @apply sticky top-0 z-30 backdrop-blur-xl border-b border-slate-200 shadow-sm
+           dark:border-slate-700;
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+  .dark .header {
+    background-color: rgba(15, 23, 42, 0.9);
+  }
+
+  /* Responsive Container */
+  .page-container {
+    @apply mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8;
+  }
+
+  /* Responsive Text Sizes */
+  .text-responsive-title {
+    @apply text-lg sm:text-xl lg:text-2xl font-bold;
+  }
+
+  .text-responsive-body {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-responsive-small {
+    @apply text-xs sm:text-sm;
   }
 
   /* Chart Cards */

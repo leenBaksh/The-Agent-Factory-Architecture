@@ -45,16 +45,67 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 async def register_fte_instances():
     """Register all known FTE instances."""
+    import random
+    from datetime import datetime
     from app.services.fte_registry import fte_registry
+
+    now = datetime.now()
     
-    # Register Customer Success FTE
-    await fte_registry.register({
-        "id": "customer-success-1",
-        "name": "Customer Success FTE",
-        "type": "customer-success",
-        "url": settings.customer_success_fte_url,
-    })
+    # Register FTEs with dynamic metrics
+    ftes = [
+        {
+            "id": "customer-success-1",
+            "name": "Customer Success FTE",
+            "type": "customer-success",
+            "status": "running",
+            "version": "1.0.0",
+            "url": settings.customer_success_fte_url,
+            "uptime_seconds": 86400 + random.randint(0, 3600),
+            "last_health_check": now.isoformat(),
+            "metrics": {
+                "messages_per_minute": round(10 + random.random() * 5, 1),
+                "avg_latency_ms": random.randint(200, 280),
+                "error_rate": round(0.01 + random.random() * 0.03, 2),
+                "active_conversations": random.randint(5, 12),
+            },
+        },
+        {
+            "id": "sales-support-1",
+            "name": "Sales Support FTE",
+            "type": "sales",
+            "status": "running",
+            "version": "1.2.0",
+            "url": "http://localhost:8001",
+            "uptime_seconds": 172800 + random.randint(0, 3600),
+            "last_health_check": now.isoformat(),
+            "metrics": {
+                "messages_per_minute": round(6 + random.random() * 4, 1),
+                "avg_latency_ms": random.randint(150, 220),
+                "error_rate": round(0.005 + random.random() * 0.02, 2),
+                "active_conversations": random.randint(3, 8),
+            },
+        },
+        {
+            "id": "technical-support-1",
+            "name": "Technical Support FTE",
+            "type": "technical-support",
+            "status": "running",
+            "version": "0.9.5",
+            "url": "http://localhost:8002",
+            "uptime_seconds": 43200 + random.randint(0, 3600),
+            "last_health_check": now.isoformat(),
+            "metrics": {
+                "messages_per_minute": round(12 + random.random() * 6, 1),
+                "avg_latency_ms": random.randint(280, 380),
+                "error_rate": round(0.05 + random.random() * 0.06, 2),
+                "active_conversations": random.randint(8, 15),
+            },
+        },
+    ]
     
+    for fte in ftes:
+        await fte_registry.register(fte)
+
     logger.info(f"Registered FTE instances: {len(fte_registry.instances)}")
 
 

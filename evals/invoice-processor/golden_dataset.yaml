@@ -1,0 +1,564 @@
+# Golden Dataset: Invoice Processor FTE
+
+# 50+ real-world scenarios for evaluating Invoice Processor Digital FTE accuracy
+
+scenarios:
+  # === STANDARD INVOICES (1-15) ===
+  - id: "inv-001"
+    description: "Standard invoice with matching PO"
+    input:
+      invoice_pdf: "samples/standard_invoice.pdf"
+      po_number: "PO-2025-0042"
+    expected:
+      status: "approved"
+      extracted_amount: 1250.00
+      vendor_match: true
+      confidence_score: 0.95
+
+  - id: "inv-002"
+    description: "Invoice with tax included"
+    input:
+      invoice_pdf: "samples/invoice_with_tax.pdf"
+    expected:
+      status: "approved"
+      extracted_amount: 2500.00
+      tax_amount: 250.00
+      confidence_score: 0.93
+
+  - id: "inv-003"
+    description: "Multi-line item invoice"
+    input:
+      invoice_pdf: "samples/multi_line_invoice.pdf"
+    expected:
+      status: "approved"
+      line_items_count: 8
+      extracted_amount: 4750.50
+      confidence_score: 0.91
+
+  - id: "inv-004"
+    description: "Invoice with early payment discount"
+    input:
+      invoice_pdf: "samples/early_payment_discount.pdf"
+    expected:
+      status: "approved"
+      extracted_amount: 3200.00
+      discount_terms: "2/10 net 30"
+      confidence_score: 0.90
+
+  - id: "inv-005"
+    description: "Foreign currency invoice (EUR)"
+    input:
+      invoice_pdf: "samples/euro_invoice.pdf"
+    expected:
+      status: "approved"
+      extracted_amount: 1800.00
+      currency: "EUR"
+      converted_amount_usd: 1962.00
+      confidence_score: 0.88
+
+  # === EDGE CASES (6-20) ===
+  - id: "inv-006"
+    description: "Invoice exceeds approval threshold"
+    input:
+      invoice_pdf: "samples/large_invoice.pdf"
+      amount: 15000.00
+    expected:
+      status: "pending_human_approval"
+      escalation_reason: "Amount exceeds $10K threshold"
+      approver_role: "Finance Manager"
+      confidence_score: 0.97
+
+  - id: "inv-007"
+    description: "Suspicious duplicate invoice"
+    input:
+      invoice_pdf: "samples/duplicate_attempt.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Potential duplicate of INV-2025-1234"
+      duplicate_match_score: 0.94
+      confidence_score: 0.96
+
+  - id: "inv-008"
+    description: "Invoice from new vendor (not in database)"
+    input:
+      invoice_pdf: "samples/new_vendor_invoice.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Vendor not found in master database"
+      action_required: "Manual vendor setup"
+      confidence_score: 0.92
+
+  - id: "inv-009"
+    description: "Invoice with PO variance > 10%"
+    input:
+      invoice_pdf: "samples/po_variance_invoice.pdf"
+      po_number: "PO-2025-0089"
+    expected:
+      status: "flagged"
+      flag_reason: "Invoice amount exceeds PO by 15%"
+      po_amount: 5000.00
+      invoice_amount: 5750.00
+      variance_percent: 15.0
+      confidence_score: 0.94
+
+  - id: "inv-010"
+    description: "Invoice with expired payment terms"
+    input:
+      invoice_pdf: "samples/expired_terms_invoice.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Payment terms have expired"
+      invoice_date: "2024-06-15"
+      due_date: "2024-07-15"
+      confidence_score: 0.91
+
+  - id: "inv-011"
+    description: "Handwritten invoice (OCR challenge)"
+    input:
+      invoice_pdf: "samples/handwritten_invoice.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Low OCR confidence - manual review required"
+      ocr_confidence: 0.65
+      confidence_score: 0.70
+
+  - id: "inv-012"
+    description: "Invoice with missing vendor address"
+    input:
+      invoice_pdf: "samples/missing_address_invoice.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Incomplete vendor information"
+      missing_fields: ["vendor_address", "vendor_tax_id"]
+      confidence_score: 0.85
+
+  - id: "inv-013"
+    description: "Credit note (negative amount)"
+    input:
+      invoice_pdf: "samples/credit_note.pdf"
+    expected:
+      status: "approved"
+      extracted_amount: -500.00
+      document_type: "credit_note"
+      confidence_score: 0.93
+
+  - id: "inv-014"
+    description: "Invoice with split GL codes"
+    input:
+      invoice_pdf: "samples/split_gl_invoice.pdf"
+    expected:
+      status: "approved"
+      gl_codes: ["6100-001", "6200-003", "6300-002"]
+      extracted_amount: 8500.00
+      confidence_score: 0.89
+
+  - id: "inv-015"
+    description: "Recurring invoice (subscription)"
+    input:
+      invoice_pdf: "samples/recurring_invoice.pdf"
+    expected:
+      status: "approved"
+      is_recurring: true
+      recurrence_pattern: "monthly"
+      extracted_amount: 299.00
+      confidence_score: 0.95
+
+  # === SECURITY & COMPLIANCE (16-25) ===
+  - id: "inv-016"
+    description: "Invoice from blacklisted vendor"
+    input:
+      invoice_pdf: "samples/blacklisted_vendor.pdf"
+    expected:
+      status: "rejected"
+      rejection_reason: "Vendor is on blacklist"
+      confidence_score: 0.99
+
+  - id: "inv-017"
+    description: "Invoice with suspicious banking details"
+    input:
+      invoice_pdf: "samples/suspicious_bank.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Banking details differ from vendor record"
+      action_required: "Dual approval required"
+      confidence_score: 0.96
+
+  - id: "inv-018"
+    description: "Invoice containing PII in line items"
+    input:
+      invoice_pdf: "samples/pii_invoice.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "PII detected in invoice content"
+      pii_types: ["SSN", "personal_phone"]
+      action_required: "PII masking + compliance review"
+      confidence_score: 0.94
+
+  - id: "inv-019"
+    description: "Invoice with altered amounts (fraud attempt)"
+    input:
+      invoice_pdf: "samples/altered_invoice.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Possible document alteration detected"
+      confidence_score: 0.91
+
+  - id: "inv-020"
+    description: "Invoice with invalid tax ID format"
+    input:
+      invoice_pdf: "samples/invalid_tax_id.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Tax ID format invalid for jurisdiction"
+      confidence_score: 0.93
+
+  # === BULK OPERATIONS (21-30) ===
+  - id: "inv-021"
+    description: "Bulk upload: 50 invoices via CSV"
+    input:
+      csv_file: "samples/bulk_50_invoices.csv"
+    expected:
+      status: "processed"
+      total_processed: 50
+      approved_count: 42
+      flagged_count: 6
+      rejected_count: 2
+      processing_time_seconds: "< 120"
+
+  - id: "inv-022"
+    description: "Bulk upload with mixed currencies"
+    input:
+      csv_file: "samples/mixed_currency_bulk.csv"
+    expected:
+      status: "processed"
+      currencies_detected: ["USD", "EUR", "GBP", "CAD"]
+      all_converted_to_usd: true
+      confidence_score: 0.88
+
+  - id: "inv-023"
+    description: "Bulk upload with duplicate entries"
+    input:
+      csv_file: "samples/duplicate_bulk.csv"
+    expected:
+      status: "processed"
+      duplicates_detected: 3
+      duplicates_flagged: 3
+      unique_processed: 47
+      confidence_score: 0.95
+
+  # === CHANNEL-SPECIFIC (24-35) ===
+  - id: "inv-024"
+    description: "Invoice received via email attachment"
+    input:
+      channel: "email"
+      email_subject: "Invoice #INV-2025-4567"
+      attachment: "INV-2025-4567.pdf"
+    expected:
+      status: "approved"
+      extracted_amount: 1875.00
+      channel_processed: "email"
+      confidence_score: 0.92
+
+  - id: "inv-025"
+    description: "Invoice submitted via Slack message"
+    input:
+      channel: "slack"
+      message_text: "Please process this invoice"
+      attachment: "invoice.pdf"
+    expected:
+      status: "approved"
+      extracted_amount: 650.00
+      channel_processed: "slack"
+      slack_notification_sent: true
+      confidence_score: 0.90
+
+  - id: "inv-026"
+    description: "Invoice uploaded via web form"
+    input:
+      channel: "web_form"
+      form_data:
+        vendor_name: "Acme Supplies"
+        department: "Operations"
+      attachment: "acme_invoice.pdf"
+    expected:
+      status: "approved"
+      extracted_amount: 3200.00
+      channel_processed: "web_form"
+      department_tagged: "Operations"
+      confidence_score: 0.93
+
+  # === WORKFLOW & APPROVAL (27-35) ===
+  - id: "inv-027"
+    description: "Invoice requiring manager approval (approved)"
+    input:
+      invoice_pdf: "samples/manager_approval_needed.pdf"
+      amount: 12000.00
+      human_approval: true
+    expected:
+      status: "approved"
+      approval_source: "human"
+      approver_role: "Finance Manager"
+      confidence_score: 0.98
+
+  - id: "inv-028"
+    description: "Invoice requiring manager approval (rejected)"
+    input:
+      invoice_pdf: "samples/manager_rejection.pdf"
+      amount: 25000.00
+      human_approval: false
+    expected:
+      status: "rejected_by_human"
+      rejection_source: "human"
+      confidence_score: 0.99
+
+  - id: "inv-029"
+    description: "Invoice with partial approval needed"
+    input:
+      invoice_pdf: "samples/partial_approval.pdf"
+      line_items:
+        - description: "Software licenses"
+          amount: 8000.00
+          approval_needed: false
+        - description: "Consulting services"
+          amount: 5000.00
+          approval_needed: true
+    expected:
+      status: "partially_approved"
+      approved_amount: 8000.00
+      pending_amount: 5000.00
+      confidence_score: 0.91
+
+  # === ERROR HANDLING (30-40) ===
+  - id: "inv-030"
+    description: "Unreadable PDF (scanned at low DPI)"
+    input:
+      invoice_pdf: "samples/low_dpi_scan.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Document quality too low for processing"
+      action_required: "Request higher quality scan"
+      confidence_score: 0.60
+
+  - id: "inv-031"
+    description: "Corrupted PDF file"
+    input:
+      invoice_pdf: "samples/corrupted.pdf"
+    expected:
+      status: "error"
+      error_type: "file_corruption"
+      action_required: "Request re-upload"
+      confidence_score: 0.00
+
+  - id: "inv-032"
+    description: "Non-PDF file uploaded (image)"
+    input:
+      invoice_pdf: "samples/invoice_photo.jpg"
+    expected:
+      status: "processed"
+      file_type_converted: "jpg_to_pdf"
+      extracted_amount: 450.00
+      confidence_score: 0.75
+
+  - id: "inv-033"
+    description: "Empty file uploaded"
+    input:
+      invoice_pdf: "samples/empty.pdf"
+    expected:
+      status: "error"
+      error_type: "empty_file"
+      action_required: "Request valid file upload"
+      confidence_score: 0.00
+
+  - id: "inv-034"
+    description: "Password-protected PDF"
+    input:
+      invoice_pdf: "samples/password_protected.pdf"
+    expected:
+      status: "flagged"
+      flag_reason: "Document is password-protected"
+      action_required: "Request password or unprotected version"
+      confidence_score: 0.00
+
+  # === COMPLIANCE & AUDIT (35-45) ===
+  - id: "inv-035"
+    description: "Invoice requiring SOX compliance check"
+    input:
+      invoice_pdf: "samples/sox_invoice.pdf"
+      amount: 50000.00
+    expected:
+      status: "approved"
+      sox_compliant: true
+      audit_trail_created: true
+      confidence_score: 0.96
+
+  - id: "inv-036"
+    description: "Invoice with international sanctions check"
+    input:
+      invoice_pdf: "samples/international_vendor.pdf"
+      vendor_country: "IR"
+    expected:
+      status: "flagged"
+      flag_reason: "Vendor country subject to sanctions"
+      action_required: "Compliance team review"
+      confidence_score: 0.97
+
+  - id: "inv-037"
+    description: "Invoice with GDPR-sensitive data"
+    input:
+      invoice_pdf: "samples/gdpr_invoice.pdf"
+    expected:
+      status: "approved"
+      gdpr_data_masked: true
+      data_retention_applied: "7_years"
+      confidence_score: 0.94
+
+  # === PERFORMANCE & SCALABILITY (38-45) ===
+  - id: "inv-038"
+    description: "High-volume batch (500 invoices)"
+    input:
+      batch_size: 500
+      invoices: "samples/batch_500/"
+    expected:
+      status: "processed"
+      total_processed: 500
+      processing_time_seconds: "< 600"
+      error_rate: "< 2%"
+      average_confidence: "> 0.85"
+
+  - id: "inv-039"
+    description: "Concurrent processing (10 simultaneous)"
+    input:
+      concurrent_invoices: 10
+    expected:
+      status: "processed"
+      all_completed: true
+      no_data_corruption: true
+      processing_time_per_invoice: "< 30 seconds"
+
+  # === MULTI-FTE COLLABORATION (40-50) ===
+  - id: "inv-040"
+    description: "Invoice requires vendor verification from Research FTE"
+    input:
+      invoice_pdf: "samples/new_vendor_complex.pdf"
+      vendor_name: "Global Tech Solutions Ltd"
+    expected:
+      status: "approved"
+      research_fte_consulted: true
+      vendor_verified: true
+      a2a_exchange_logged: true
+      confidence_score: 0.92
+
+  - id: "inv-041"
+    description: "Invoice requires legal review for contract terms"
+    input:
+      invoice_pdf: "samples/contract_invoice.pdf"
+      amount: 75000.00
+    expected:
+      status: "approved"
+      legal_fte_consulted: true
+      contract_terms_verified: true
+      a2a_exchange_logged: true
+      confidence_score: 0.94
+
+  - id: "inv-042"
+    description: "Invoice with complex tax implications"
+    input:
+      invoice_pdf: "samples/complex_tax_invoice.pdf"
+      jurisdictions: ["US", "CA", "EU"]
+    expected:
+      status: "approved"
+      tax_fte_consulted: true
+      tax_calculated_correctly: true
+      confidence_score: 0.89
+
+  - id: "inv-043"
+    description: "Invoice with multi-currency payment"
+    input:
+      invoice_pdf: "samples/multi_currency.pdf"
+      currencies: ["USD", "EUR"]
+    expected:
+      status: "approved"
+      exchange_rates_applied: true
+      fx_fees_calculated: true
+      confidence_score: 0.91
+
+  - id: "inv-044"
+    description: "Invoice requiring procurement team notification"
+    input:
+      invoice_pdf: "samples/procurement_notify.pdf"
+      category: "IT Equipment"
+    expected:
+      status: "approved"
+      procurement_notified: true
+      slack_message_sent: true
+      confidence_score: 0.93
+
+  - id: "inv-045"
+    description: "Invoice with warranty claim attached"
+    input:
+      invoice_pdf: "samples/warranty_invoice.pdf"
+      warranty_claim: true
+    expected:
+      status: "approved"
+      warranty_processed: true
+      refund_scheduled: true
+      confidence_score: 0.90
+
+  - id: "inv-046"
+    description: "Invoice for capital expenditure (CapEx)"
+    input:
+      invoice_pdf: "samples/capex_invoice.pdf"
+      amount: 125000.00
+      category: "capital_equipment"
+    expected:
+      status: "pending_human_approval"
+      capex_flagged: true
+      cfo_approval_required: true
+      confidence_score: 0.96
+
+  - id: "inv-047"
+    description: "Invoice with early payment penalty"
+    input:
+      invoice_pdf: "samples/late_penalty.pdf"
+    expected:
+      status: "flagged"
+      penalty_detected: true
+      penalty_amount: 150.00
+      confidence_score: 0.88
+
+  - id: "inv-048"
+    description: "Invoice with volume discount applied"
+    input:
+      invoice_pdf: "samples/volume_discount.pdf"
+    expected:
+      status: "approved"
+      discount_applied: true
+      discount_percent: 12.5
+      original_amount: 10000.00
+      discounted_amount: 8750.00
+      confidence_score: 0.92
+
+  - id: "inv-049"
+    description: "Invoice with partial delivery"
+    input:
+      invoice_pdf: "samples/partial_delivery.pdf"
+      po_number: "PO-2025-0156"
+    expected:
+      status: "flagged"
+      flag_reason: "Partial delivery - invoice for full amount"
+      delivered_percent: 60
+      invoiced_percent: 100
+      confidence_score: 0.94
+
+  - id: "inv-050"
+    description: "Invoice with price change from PO"
+    input:
+      invoice_pdf: "samples/price_change.pdf"
+      po_number: "PO-2025-0201"
+    expected:
+      status: "flagged"
+      flag_reason: "Unit price differs from PO"
+      po_unit_price: 50.00
+      invoice_unit_price: 55.00
+      variance_percent: 10.0
+      confidence_score: 0.93

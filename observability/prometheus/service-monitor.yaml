@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: digital-fte-monitor
+  namespace: digital-ftes
+  labels:
+    app: digital-fte
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: digital-fte
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - digital-ftes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: digital-fte-metrics
+  namespace: digital-ftes
+  labels:
+    app: digital-fte
+spec:
+  selector:
+    app: digital-fte
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP

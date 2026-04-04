@@ -29,82 +29,71 @@ const DashboardContext = createContext<DashboardContextType>({
 
 // API base URL from environment or default
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8003';
+const FTE_API_URL = 'http://localhost:8003';
 
 // Fetch metrics from real API
 async function fetchMetrics(): Promise<DashboardMetrics> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/metrics/dashboard`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch metrics: ${response.status}`);
-    }
-    const data = await response.json();
-    // Ensure we return a valid metrics structure
-    return {
-      summary: data.summary || {
-        total_tickets: 0,
-        open_tickets: 0,
-        avg_resolution_time_hours: 0,
-        avg_satisfaction_rating: 0,
-        sla_compliance_rate: 0,
-        total_conversations_24h: 0,
-      },
-      tickets_by_status: data.tickets_by_status || { open: 0, in_progress: 0, waiting_customer: 0, resolved: 0, closed: 0 },
-      tickets_by_channel: data.tickets_by_channel || { web: 0, gmail: 0, whatsapp: 0 },
-      recent_tickets: Array.isArray(data.recent_tickets) ? data.recent_tickets : [],
-      sla_breaches: Array.isArray(data.sla_breaches) ? data.sla_breaches : [],
-      metrics_history: Array.isArray(data.metrics_history) ? data.metrics_history : [],
-    };
-  } catch (error) {
-    console.error('Error fetching metrics:', error);
-    // Return empty metrics structure on error
-    return {
-      summary: {
-        total_tickets: 0,
-        open_tickets: 0,
-        avg_resolution_time_hours: 0,
-        avg_satisfaction_rating: 0,
-        sla_compliance_rate: 0,
-        total_conversations_24h: 0,
-      },
-      tickets_by_status: { open: 0, in_progress: 0, waiting_customer: 0, resolved: 0, closed: 0 },
-      tickets_by_channel: { web: 0, gmail: 0, whatsapp: 0 },
-      recent_tickets: [],
-      sla_breaches: [],
-      metrics_history: [],
-    };
+  const response = await fetch(`${API_BASE_URL}/metrics/dashboard`, {
+    signal: AbortSignal.timeout(5000) // 5 second timeout
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch metrics: ${response.status}`);
   }
+  const text = await response.text();
+  if (!text) {
+    throw new Error('Empty response from metrics API');
+  }
+  const data = JSON.parse(text);
+  // Ensure we return a valid metrics structure
+  return {
+    summary: data.summary || {
+      total_tickets: 0,
+      open_tickets: 0,
+      avg_resolution_time_hours: 0,
+      avg_satisfaction_rating: 0,
+      sla_compliance_rate: 0,
+      total_conversations_24h: 0,
+    },
+    tickets_by_status: data.tickets_by_status || { open: 0, in_progress: 0, waiting_customer: 0, resolved: 0, closed: 0 },
+    tickets_by_channel: data.tickets_by_channel || { web: 0, gmail: 0, whatsapp: 0 },
+    recent_tickets: Array.isArray(data.recent_tickets) ? data.recent_tickets : [],
+    sla_breaches: Array.isArray(data.sla_breaches) ? data.sla_breaches : [],
+    metrics_history: Array.isArray(data.metrics_history) ? data.metrics_history : [],
+  };
 }
 
 // Fetch FTE instances from real API
 async function fetchFTEInstances(): Promise<FTEInstance[]> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/a2a/ftes`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch FTE instances: ${response.status}`);
-    }
-    const data = await response.json();
-    // Ensure we always return an array
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching FTE instances:', error);
-    return [];
+  const response = await fetch(`${API_BASE_URL}/api/a2a/ftes`, {
+    signal: AbortSignal.timeout(5000) // 5 second timeout
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch FTE instances: ${response.status}`);
   }
+  const text = await response.text();
+  if (!text) {
+    throw new Error('Empty response from FTE API');
+  }
+  const data = JSON.parse(text);
+  // Ensure we always return an array
+  return Array.isArray(data) ? data : [];
 }
 
 // Fetch SLA breaches from real API
 async function fetchSLABreaches(): Promise<SLABreach[]> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/metrics/sla-breaches`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch SLA breaches: ${response.status}`);
-    }
-    const data = await response.json();
-    // Ensure we always return an array
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching SLA breaches:', error);
-    return [];
+  const response = await fetch(`${API_BASE_URL}/metrics/sla-breaches`, {
+    signal: AbortSignal.timeout(5000)
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch SLA breaches: ${response.status}`);
   }
+  const text = await response.text();
+  if (!text) {
+    throw new Error('Empty response from SLA API');
+  }
+  const data = JSON.parse(text);
+  // Ensure we always return an array
+  return Array.isArray(data) ? data : [];
 }
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
@@ -121,14 +110,33 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const [metricsData, fteData, slaData] = await Promise.all([
+      const [metricsData, fteData, slaData] = await Promise.allSettled([
         fetchMetrics(),
         fetchFTEInstances(),
         fetchSLABreaches(),
       ]);
-      setMetrics(metricsData);
-      setFteInstances(fteData);
-      setSlaBreaches(slaData);
+      
+      // Handle metrics result
+      if (metricsData.status === 'fulfilled') {
+        setMetrics(metricsData.value);
+      } else {
+        console.warn('Failed to fetch metrics:', metricsData.reason);
+      }
+      
+      // Handle FTE instances result
+      if (fteData.status === 'fulfilled') {
+        setFteInstances(fteData.value);
+      } else {
+        console.warn('Failed to fetch FTE instances:', fteData.reason);
+      }
+      
+      // Handle SLA breaches result
+      if (slaData.status === 'fulfilled') {
+        setSlaBreaches(slaData.value);
+      } else {
+        console.warn('Failed to fetch SLA breaches:', slaData.reason);
+      }
+      
       setLastUpdated(new Date());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data';
