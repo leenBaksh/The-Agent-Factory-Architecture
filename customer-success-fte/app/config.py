@@ -128,6 +128,42 @@ class Settings(BaseSettings):
     dapr_state_store: str = Field(default="cs-state", description="Dapr state store component name")
     dapr_workflow_runtime: str = Field(default="workflow-runtime", description="Dapr workflow runtime ID")
 
+    # ── MCP (Model Context Protocol) ──────────────────────────────────────────
+    mcp_enabled: bool = Field(default=False, description="Enable MCP server integrations")
+    mcp_server_ids: str = Field(
+        default="",
+        description="Comma-separated list of MCP server IDs to load (e.g., filesystem,postgres,github,slack,jira)",
+    )
+    mcp_filesystem_path: str = Field(default="", description="Path to expose via filesystem MCP")
+    mcp_postgres_connection_string: str = Field(default="", description="PostgreSQL connection string for MCP")
+    mcp_github_token: str = Field(default="", description="GitHub token for GitHub MCP")
+    mcp_slack_bot_token: str = Field(default="", description="Slack bot token for Slack MCP")
+
+    # ── Jira Integration ──────────────────────────────────────────────────────
+    jira_url: str = Field(default="", description="Jira instance URL (e.g., https://company.atlassian.net)")
+    jira_email: str = Field(default="", description="Atlassian account email")
+    jira_api_token: str = Field(default="", description="Jira API token")
+    jira_project_key: str = Field(default="", description="Jira project key (e.g., CS, SCRUM)")
+    jira_default_assignee: str = Field(default="", description="Default assignee for Jira tickets")
+    jira_enabled: bool = Field(default=False, description="Enable Jira integration")
+
+    @field_validator("mcp_server_ids")
+    @classmethod
+    def parse_server_ids(cls, v: str) -> str:
+        """Validate and normalize server IDs list"""
+        if v:
+            # Strip whitespace and filter empty strings
+            ids = [sid.strip() for sid in v.split(",") if sid.strip()]
+            return ",".join(ids)
+        return v
+
+    @property
+    def mcp_server_ids_list(self) -> list[str]:
+        """Get server IDs as a list"""
+        if not self.mcp_server_ids:
+            return []
+        return [sid.strip() for sid in self.mcp_server_ids.split(",") if sid.strip()]
+
     @field_validator("database_url")
     @classmethod
     def validate_asyncpg_driver(cls, v: str) -> str:

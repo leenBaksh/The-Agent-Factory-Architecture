@@ -1,0 +1,30 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+  namespace: agent-factory
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+  - name: redisHost
+    value: "redis-master:6379"
+  - name: redisPassword
+    secretKeyRef:
+      name: redis-password
+      key: redis-password
+  - name: actorStateStore
+    value: "true"
+  - name: queryIndexes
+    value: |
+      [
+        {
+          "tableName": "fte_state",
+          "first": true,
+          "key": "fte_id"
+        }
+      ]
+scopes:
+- customer-success-fte
+- sales-support-fte
+- technical-support-fte

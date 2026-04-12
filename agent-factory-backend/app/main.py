@@ -234,6 +234,20 @@ async def get_skill(skill_id: str):
     return await get_skill_by_id(skill_id)
 
 
+# ── Notifications endpoints ────────────────────────────────────────────────────
+
+from app.routers.notifications import router as notifications_router
+
+app.include_router(notifications_router, prefix="/api", tags=["Notifications"])
+
+
+# ── Authentication endpoints ───────────────────────────────────────────────────
+
+from app.routers.auth import router as auth_router
+
+app.include_router(auth_router, prefix="/api", tags=["Authentication"])
+
+
 # ── A2A Protocol endpoints ─────────────────────────────────────────────────────
 
 if settings.a2a_enabled:

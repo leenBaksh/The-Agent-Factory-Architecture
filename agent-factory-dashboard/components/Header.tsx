@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Bell, RefreshCw, CheckCircle, AlertCircle, Moon, Sun } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle, AlertCircle, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NotificationPanel, NotificationBell } from '@/components/NotificationPanel';
+import { getNotifications } from '@/lib/api';
 
 interface HeaderProps {
   title: string;
@@ -15,6 +17,35 @@ export function Header({ title, subtitle }: HeaderProps) {
   const { refreshMetrics, loading, lastUpdated, error } = useDashboard();
   const { user } = useAuth();
   const [isDark, setIsDark] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      const data = await getNotifications();
+      if (data) {
+        setUnreadCount(data.unread_count);
+      }
+    };
+
+    fetchUnreadCount();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle notification refresh
+  const handleNotificationRefresh = useCallback(async () => {
+    const data = await getNotifications();
+    if (data) setUnreadCount(data.unread_count);
+  }, []);
+
+  // Handle notification panel close
+  const handleNotificationClose = useCallback(() => {
+    setShowNotifications(false);
+    handleNotificationRefresh();
+  }, [handleNotificationRefresh]);
 
   // Initialize dark mode from localStorage or system preference
   useEffect(() => {
@@ -118,17 +149,16 @@ export function Header({ title, subtitle }: HeaderProps) {
             </button>
 
             {/* Notifications */}
-            <div className="relative">
-              <button
-                onClick={() => alert('🔔 Notifications\n\n📌 You have 3 new notifications:\n\n1. 🎫 Ticket #1234 assigned to you\n   2 minutes ago\n\n2. ⚠️ SLA breach warning - Ticket #1230\n   15 minutes ago\n\n3. ✅ Ticket #1225 resolved successfully\n   1 hour ago\n\nClick to view all notifications.')}
-                className="p-2 rounded-lg hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300 transition-all relative group cursor-pointer"
-                aria-label="Notifications"
-                title="View Notifications"
-              >
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-hover:text-fuchsia-500 transition-colors" />
-                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-gradient-to-r from-fuchsia-500 to-cyan-500 rounded-full ring-2 ring-white dark:ring-slate-800 animate-pulse shadow-lg shadow-fuchsia-500/50" />
-              </button>
-            </div>
+            <NotificationBell
+              unreadCount={unreadCount}
+              onClick={() => setShowNotifications(!showNotifications)}
+              isOpen={showNotifications}
+              onRefresh={handleNotificationRefresh}
+            />
+            <NotificationPanel
+              isOpen={showNotifications}
+              onClose={handleNotificationClose}
+            />
 
             {/* Refresh - Hidden on mobile */}
             <button

@@ -26,7 +26,14 @@ class Settings(BaseSettings):
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8003
+
+    # Authentication & Security
+    jwt_secret_key: str = "your-secret-key-change-in-production-use-env-var"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_minutes: int = 30
+    jwt_refresh_token_days: int = 7
+    bcrypt_rounds: int = 12
 
 
 _settings: Settings | None = None

@@ -29,12 +29,12 @@ const DashboardContext = createContext<DashboardContextType>({
 
 // API base URL from environment or default
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8003';
-const FTE_API_URL = 'http://localhost:8003';
 
 // Fetch metrics from real API
 async function fetchMetrics(): Promise<DashboardMetrics> {
   const response = await fetch(`${API_BASE_URL}/metrics/dashboard`, {
-    signal: AbortSignal.timeout(5000) // 5 second timeout
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch metrics: ${response.status}`);
@@ -65,7 +65,8 @@ async function fetchMetrics(): Promise<DashboardMetrics> {
 // Fetch FTE instances from real API
 async function fetchFTEInstances(): Promise<FTEInstance[]> {
   const response = await fetch(`${API_BASE_URL}/api/a2a/ftes`, {
-    signal: AbortSignal.timeout(5000) // 5 second timeout
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch FTE instances: ${response.status}`);
@@ -82,7 +83,8 @@ async function fetchFTEInstances(): Promise<FTEInstance[]> {
 // Fetch SLA breaches from real API
 async function fetchSLABreaches(): Promise<SLABreach[]> {
   const response = await fetch(`${API_BASE_URL}/metrics/sla-breaches`, {
-    signal: AbortSignal.timeout(5000)
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch SLA breaches: ${response.status}`);

@@ -19,6 +19,41 @@ export default function SLAMonitorPage() {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
+  const handleExportReport = () => {
+    // Generate CSV report
+    const headers = ['Ticket ID', 'Subject', 'Priority', 'Status', 'Created At', 'SLA Breached', 'Hours Open', 'Channel'];
+    const activeBreaches = slaBreaches.filter(b => b.status === 'active');
+    
+    const rows = activeBreaches.length > 0 
+      ? activeBreaches.map(b => [
+          b.ticket_id,
+          b.subject,
+          b.priority,
+          b.status,
+          new Date(b.created_at).toLocaleString(),
+          b.sla_breached ? 'Yes' : 'No',
+          b.hours_open?.toFixed(1) || 'N/A',
+          b.channel
+        ])
+      : [['No active breaches found']];
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `sla-report-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const slaMetrics = [
     {
       label: 'SLA Compliance Rate',
@@ -105,8 +140,8 @@ export default function SLAMonitorPage() {
                 <Settings className="h-4 w-4" />
                 SLA Settings
               </button>
-              <button 
-                onClick={() => alert('Exporting SLA report...')}
+              <button
+                onClick={handleExportReport}
                 className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 <Download className="h-4 w-4" />

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sparkles, Mail, Lock, AlertCircle, X, CheckCircle } from 'lucide-react';
+import { Sparkles, Mail, Lock, AlertCircle, X, CheckCircle, Shield } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,7 +13,10 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
-  const { login, error, clearError, user, isAuthenticated } = useAuth();
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+  const [twoFACode, setTwoFACode] = useState('');
+  const { login, verify2FA, error, clearError, user, isAuthenticated } = useAuth();
   const router = useRouter();
 
   // Redirect if already logged in
@@ -29,7 +32,27 @@ export default function LoginPage() {
     clearError();
 
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      
+      // Check if 2FA is required
+      if (result.requires2FA && result.tempToken) {
+        setRequires2FA(true);
+        setTempToken(result.tempToken);
+      }
+    } catch (err) {
+      // Error is handled by context
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handle2FASubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    clearError();
+
+    try {
+      await verify2FA(email, twoFACode, tempToken);
     } catch (err) {
       // Error is handled by context
     } finally {
@@ -146,10 +169,12 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-              Sign in to your account
+              {requires2FA ? 'Two-Factor Authentication' : 'Sign in to your account'}
             </h2>
             <p className="text-slate-500 dark:text-slate-400">
-              Enter your credentials to access the dashboard
+              {requires2FA 
+                ? 'Enter the code from your authenticator app' 
+                : 'Enter your credentials to access the dashboard'}
             </p>
           </div>
 
@@ -163,7 +188,66 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {requires2FA ? (
+            /* 2FA Form */
+            <form onSubmit={handle2FASubmit} className="space-y-6">
+              {/* 2FA Code Field */}
+              <div>
+                <label htmlFor="twoFACode" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Authentication Code
+                </label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    id="twoFACode"
+                    type="text"
+                    value={twoFACode}
+                    onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent dark:text-white transition-all text-center text-2xl tracking-[0.5em] font-mono"
+                    placeholder="000000"
+                    maxLength={6}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Back to Login */}
+              <button
+                type="button"
+                onClick={() => {
+                  setRequires2FA(false);
+                  setTempToken('');
+                  setTwoFACode('');
+                  clearError();
+                }}
+                className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium rounded-lg transition-all"
+              >
+                ← Back to login
+              </button>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Verifying...
+                  </>
+                ) : (
+                  'Verify & Sign in'
+                )}
+              </button>
+            </form>
+          ) : (
+            /* Login Form */
+            <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -239,16 +323,7 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Demo Notice */}
-          <div className="mt-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
-            <p className="text-sm font-medium text-indigo-900 dark:text-indigo-100 mb-2">
-              ✨ Demo Mode:
-            </p>
-            <p className="text-xs text-indigo-700 dark:text-indigo-300">
-              💡 Use any email/password to test the dashboard functionality
-            </p>
-          </div>
+          )}
         </div>
       </div>
 

@@ -6,6 +6,7 @@ Orchestrates the full intake pipeline:
   2. Open or reuse a conversation
   3. Persist the inbound message
   4. Publish to Kafka for async agent processing
+  5. Send WhatsApp notification (if WhatsApp channel)
 """
 
 import logging
@@ -18,6 +19,7 @@ from app.repositories.conversations import ConversationRepository
 from app.repositories.messages import MessageRepository
 from app.services.customer_service import CustomerService
 from app.services.kafka_producer import kafka_producer
+from app.services.whatsapp_notification import get_whatsapp_service
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ class MessageService:
         phone: str | None = None,
         company: str | None = None,
         raw_payload: dict | None = None,
+        send_notification: bool = True,
     ) -> uuid.UUID:
         """
         Full intake pipeline. Returns the created Message ID.
@@ -50,6 +53,7 @@ class MessageService:
           2. find or open conversation
           3. persist Message with status=received
           4. publish to Kafka
+          5. send WhatsApp notification (if applicable)
         """
         raw_payload = raw_payload or {}
 
@@ -67,6 +71,7 @@ class MessageService:
         conversation = await self._conversations.get_open_by_customer_and_channel(
             customer.id, channel
         )
+        is_new_conversation = conversation is None
         if conversation is None:
             conversation = await self._conversations.create(
                 customer_id=customer.id,
@@ -108,4 +113,63 @@ class MessageService:
             raw_payload=raw_payload,
         )
 
+        # 5. Send WhatsApp notification for new tickets
+        if send_notification and is_new_conversation and channel == ChannelType.whatsapp and phone:
+            await self._send_whatsapp_ticket_created(
+                phone=phone,
+                conversation_id=str(conversation.id),
+                subject=subject or content[:80],
+            )
+
         return message.id
+
+    async def _send_whatsapp_ticket_created(
+        self,
+        phone: str,
+        conversation_id: str,
+        subject: str,
+    ) -> None:
+        """
+        Send WhatsApp notification when a new ticket is created.
+
+        Args:
+            phone: Customer phone number
+            conversation_id: Ticket/conversation ID
+            subject: Ticket subject
+        """
+        try:
+            whatsapp = get_whatsapp_service()
+            
+            message = (
+                f"🎫 *Support Ticket Created*\n\n"
+                f"Thank you for contacting us!\n\n"
+                f"*Ticket ID:* #{conversation_id[:8].upper()}\n"
+                f"*Issue:* {subject}\n\n"
+                f"We're working on your request. You'll receive updates here.\n\n"
+                f"Reply anytime! 😊"
+            )
+            
+            result = await whatsapp.send_message(
+                to_phone=phone,
+                message=message,
+            )
+            
+            if "error" in result:
+                logger.warning(
+                    "Failed to send WhatsApp ticket notification: %s",
+                    result.get("error"),
+                )
+            else:
+                logger.info(
+                    "✅ WhatsApp notification sent for ticket %s to %s",
+                    conversation_id[:8],
+                    phone,
+                )
+                
+        except Exception as e:
+            # Don't fail the whole ingestion if notification fails
+            logger.error(
+                "Error sending WhatsApp notification: %s",
+                e,
+                exc_info=True,
+            )

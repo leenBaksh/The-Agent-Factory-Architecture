@@ -1,0 +1,21 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-pubsub
+  namespace: agent-factory
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+  - name: brokers
+    value: "kafka-broker:9092"
+  - name: authRequired
+    value: "false"
+  - name: consumerID
+    value: "digital-fte-consumer-group"
+  - name: initialOffset
+    value: "latest"
+  scopes:
+  - customer-success-fte
+  - sales-support-fte
+  - technical-support-fte

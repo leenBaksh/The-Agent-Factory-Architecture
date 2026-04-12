@@ -64,6 +64,7 @@ export interface AgentMetrics {
   escalation_count: number;
   survey_avg_rating: number;
   sla_breach_count: number;
+  sla_compliance_rate?: number;
 }
 
 export interface DashboardMetrics {

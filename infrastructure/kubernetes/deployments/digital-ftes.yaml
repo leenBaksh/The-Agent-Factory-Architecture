@@ -1,0 +1,209 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-success-fte
+  namespace: agent-factory
+  labels:
+    app: customer-success-fte
+    type: digital-fte
+    version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: customer-success-fte
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: customer-success-fte
+        type: digital-fte
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "customer-success-fte"
+        dapr.io/app-port: "8000"
+        dapr.io/enable-api-logging: "true"
+        dapr.io/log-level: "info"
+    spec:
+      serviceAccountName: fte-service-account
+      containers:
+      - name: fte-worker
+        image: ghcr.io/agent-factory/customer-success-fte:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: APP_NAME
+          value: "Customer Success FTE"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: SLACK_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: slack-bot-token
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: database-url
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: anthropic-api-key
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sales-support-fte
+  namespace: agent-factory
+  labels:
+    app: sales-support-fte
+    type: digital-fte
+    version: "1.2.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sales-support-fte
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: sales-support-fte
+        type: digital-fte
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "sales-support-fte"
+        dapr.io/app-port: "8000"
+    spec:
+      serviceAccountName: fte-service-account
+      containers:
+      - name: fte-worker
+        image: ghcr.io/agent-factory/sales-support-fte:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: APP_NAME
+          value: "Sales Support FTE"
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: technical-support-fte
+  namespace: agent-factory
+  labels:
+    app: technical-support-fte
+    type: digital-fte
+    version: "0.9.5"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: technical-support-fte
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: technical-support-fte
+        type: digital-fte
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "technical-support-fte"
+        dapr.io/app-port: "8000"
+    spec:
+      serviceAccountName: fte-service-account
+      containers:
+      - name: fte-worker
+        image: ghcr.io/agent-factory/technical-support-fte:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: APP_NAME
+          value: "Technical Support FTE"
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5

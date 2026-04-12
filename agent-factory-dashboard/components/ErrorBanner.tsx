@@ -47,7 +47,7 @@ export function ErrorBanner({ error, onRetry, type = 'disconnected' }: ErrorBann
             {type === 'disconnected' && (
               <p className="mt-2 text-xs text-slate-500">
                 Make sure the backend server is running at{' '}
-                <code className="rounded bg-slate-200 px-2 py-0.5 text-xs">http://localhost:8000</code>
+                <code className="rounded bg-slate-200 px-2 py-0.5 text-xs">http://localhost:8003</code>
               </p>
             )}
           </div>

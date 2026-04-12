@@ -68,8 +68,12 @@ export function Sidebar() {
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
       ...prev,
-      [section]: !prev[section],
+      [section]: !prev[section as keyof typeof prev],
     }));
+  };
+
+  const isSectionExpanded = (section: string): boolean => {
+    return expandedSections[section as keyof typeof expandedSections] ?? true;
   };
 
   const toggleSidebar = () => {
@@ -151,7 +155,7 @@ export function Sidebar() {
                   className="flex items-center justify-between w-full px-2.5 py-1.5 mb-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                 >
                   <h3 className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{section.section}</h3>
-                  {expandedSections[section.section] ? (
+                  {isSectionExpanded(section.section) ? (
                     <ChevronUp className="w-3 h-3 text-slate-400" />
                   ) : (
                     <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -159,7 +163,7 @@ export function Sidebar() {
                 </button>
               )}
               
-              {(expandedSections[section.section] || isCollapsed) && (
+              {(isSectionExpanded(section.section) || isCollapsed) && (
                 <div className="space-y-0.5">
                   {section.items.map((item) => {
                     const isActive = pathname === item.href;

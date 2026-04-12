@@ -1,0 +1,21 @@
+"mcpServers": {
+  "github": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-github"],
+    "env": {
+      "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+    }
+  }
+},
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://neondb_owner:npg_M8KTfW9NBHQF@ep-autumn-scene-a4ibzim1-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      ]
+    }
+  }
+}

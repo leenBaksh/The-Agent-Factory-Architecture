@@ -14,6 +14,9 @@ MCP enables:
 import asyncio
 import json
 import logging
+import os
+import platform
+import shutil
 from dataclasses import dataclass, field
 from typing import Any, Optional
 from enum import Enum
@@ -152,20 +155,58 @@ class MCPClient:
     
     async def _connect_stdio(self):
         """Connect to MCP server via stdio (subprocess)"""
-        
+
         if not self.config.command:
             raise ValueError("Command required for stdio transport")
-        
+
+        # Merge custom env with system environment so PATH is available
+        process_env = {**os.environ, **self.config.env}
+
+        # Resolve command path - on Windows, handle .cmd/.bat files properly
+        command = self.config.command
+        if platform.system() == "Windows" and not command.endswith(('.exe', '.cmd', '.bat')):
+            # Try to find the command in PATH
+            cmd_path = shutil.which(command)
+            if cmd_path:
+                command = cmd_path
+                logger.info(f"Resolved command '{self.config.command}' to '{command}'")
+            else:
+                # Try with .cmd extension
+                cmd_path = shutil.which(f"{self.config.command}.cmd")
+                if cmd_path:
+                    command = cmd_path
+                    logger.info(f"Resolved command to '{command}'")
+
+        logger.info(f"Starting MCP subprocess: {command} {' '.join(self.config.args)}")
+
         self.process = await asyncio.create_subprocess_exec(
-            self.config.command,
+            command,
             *self.config.args,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env={**self.config.env},
+            env=process_env,
         )
-        
-        logger.info(f"Started MCP server process: {self.config.command}")
+
+        logger.info(f"Started MCP server process: {command} (PID: {self.process.pid})")
+
+        # Wait briefly for subprocess to initialize (especially for npx downloads)
+        # Read any stderr output that might indicate startup progress
+        try:
+            await asyncio.sleep(2.0)  # Give subprocess time to start
+            # Check if process is still running
+            if self.process.returncode is not None:
+                # Process exited - read stderr to see what went wrong
+                stderr_output = await asyncio.wait_for(
+                    self.process.stderr.read(), timeout=1.0
+                )
+                if stderr_output:
+                    error_msg = stderr_output.decode('utf-8', errors='replace')
+                    raise RuntimeError(f"MCP subprocess failed: {error_msg}")
+                else:
+                    raise RuntimeError(f"MCP subprocess exited with code {self.process.returncode}")
+        except asyncio.TimeoutError:
+            pass  # Process is still running, which is good
     
     async def _connect_http(self):
         """Connect to MCP server via HTTP"""
@@ -183,7 +224,9 @@ class MCPClient:
     
     async def _initialize(self):
         """Send initialize request to MCP server"""
-        
+
+        logger.info("Sending initialize request to MCP server...")
+
         result = await self._send_request(
             method="initialize",
             params={
@@ -194,10 +237,11 @@ class MCPClient:
                     "version": "1.0.0",
                 },
             },
+            timeout=60.0,  # Longer timeout for first initialization (may need to download packages)
         )
-        
+
         logger.info(f"MCP server initialized: {result}")
-        
+
         # Send initialized notification
         await self._send_notification(
             method="notifications/initialized",

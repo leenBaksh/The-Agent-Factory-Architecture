@@ -1,0 +1,221 @@
+name: Digital FTE CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ── Test Job ─────────────────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r agent-factory-backend/requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+
+    - name: Run linting
+      run: |
+        pip install ruff
+        ruff check agent-factory-backend/
+
+    - name: Run unit tests
+      run: |
+        cd agent-factory-backend
+        pytest tests/ -v --tb=short --cov=app --cov-report=xml
+
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./agent-factory-backend/coverage.xml
+        flags: backend
+
+  # ── Agent Evals Job ─────────────────────────────────────────────────────────
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        pip install -r agent-factory-backend/requirements.txt
+
+    - name: Run Agent Evals (Golden Dataset)
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        python evals/run_evals.py --min-accuracy 0.85 --report evals/report.json
+
+    - name: Upload eval results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: eval-results
+        path: evals/report.json
+
+  # ── Build and Push Image ────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [test, evals]
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/agent-factory-backend
+        tags: |
+          type=sha,prefix=
+          type=ref,event=branch
+          type=semver,pattern={{version}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./agent-factory-backend
+        file: ./infrastructure/docker/Dockerfile.fte
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # ── Deploy to Staging ───────────────────────────────────────────────────────
+  deploy-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging.agent-factory.example.com
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubeconfig
+      run: |
+        echo "${{ secrets.STAGING_KUBECONFIG }}" > kubeconfig.yaml
+        export KUBECONFIG=kubeconfig.yaml
+
+    - name: Deploy to staging
+      run: |
+        kubectl set image deployment/agent-factory-backend \
+          fte-worker=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/agent-factory-backend:${{ github.sha }} \
+          --namespace=agent-factory-staging
+        kubectl rollout status deployment/agent-factory-backend \
+          --namespace=agent-factory-staging --timeout=300s
+
+    - name: Run smoke tests
+      run: |
+        sleep 30
+        curl -f https://staging.agent-factory.example.com/health || exit 1
+
+  # ── Deploy to Production ────────────────────────────────────────────────────
+  deploy-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://agent-factory.example.com
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubeconfig
+      run: |
+        echo "${{ secrets.PRODUCTION_KUBECONFIG }}" > kubeconfig.yaml
+        export KUBECONFIG=kubeconfig.yaml
+
+    - name: Deploy to production
+      run: |
+        kubectl set image deployment/agent-factory-backend \
+          fte-worker=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/agent-factory-backend:${{ github.sha }} \
+          --namespace=agent-factory
+        kubectl rollout status deployment/agent-factory-backend \
+          --namespace=agent-factory --timeout=600s
+
+    - name: Verify deployment
+      run: |
+        sleep 60
+        curl -f https://agent-factory.example.com/health || exit 1
+        curl -f https://agent-factory.example.com/ready || exit 1
+
+    - name: Notify success
+      if: success()
+      run: |
+        curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text": "✅ Production deployment successful! Version: `${{ github.sha }}`"}'
