@@ -37,7 +37,7 @@ x-app-common: &app-common
     - .env
   environment:
     # Override host-local defaults with container-internal hostnames
-    DATABASE_URL: "postgresql+asyncpg://neondb_owner:npg_M8KTfW9NBHQF@ep-autumn-scene-a4ibzim1-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
+    DATABASE_URL: "${DATABASE_URL:?DATABASE_URL environment variable is required}"
     KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
     # Dapr configuration
     DAPR_GRPC_ENDPOINT: "dapr-placement:50001"

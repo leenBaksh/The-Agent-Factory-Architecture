@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-factory
+  labels:
+    name: agent-factory
+    environment: production

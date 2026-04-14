@@ -61,5 +61,5 @@ prometheus-client==0.21.1         # /metrics endpoint (Prometheus text format)
 
 
 # ── Dapr Workflows ────────────────────────────────────────────────────────────
-dapr==1.15.0                      # Dapr Python SDK
-dapr-ext-workflow==1.15.0         # Dapr Workflows extension
+dapr==1.17.4                      # Dapr Python SDK
+dapr-ext-workflow==1.17.0         # Dapr Workflows extension

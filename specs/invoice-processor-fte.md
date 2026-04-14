@@ -126,3 +126,110 @@
 - Every action logged to `fte.audit.actions` Kafka topic
 - 7-year retention for compliance
 - Include: timestamp, action, input, output, confidence score, operator (human or FTE)
+
+## 7. Success Metrics
+
+### Key Performance Indicators (KPIs)
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Invoice processing time | < 5 minutes per invoice | Average from receipt to decision |
+| Straight-through processing rate | > 80% | % of invoices approved without human intervention |
+| Duplicate detection accuracy | 100% | Zero false negatives acceptable |
+| Validation error rate | < 2% | % of invoices flagged incorrectly |
+| Escalation accuracy | > 95% | Correct escalation routing on first attempt |
+| Daily throughput | 500+ invoices | Volume processed per 24 hours |
+| SLA compliance | > 99% | Invoices processed within target time |
+
+### Availability
+- **Operating Hours**: 24/7 (168 hours/week)
+- **Uptime Target**: 99.9% availability
+- **Recovery Time Objective (RTO)**: < 15 minutes
+- **Recovery Point Objective (RPO)**: < 5 minutes (data loss window)
+
+### Quality Standards
+- **False Positive Rate**: < 5% (valid invoices incorrectly flagged)
+- **False Negative Rate**: < 1% (invalid invoices incorrectly approved)
+- **Customer Satisfaction**: > 4.5/5.0 (vendor feedback on payment timeliness)
+
+## 8. Golden Dataset
+
+### Evaluation Scenarios (5 Sample Cases)
+
+#### Scenario 1: Standard Invoice (Auto-Approve)
+**Input**: 
+```
+Vendor: "Office Supplies Inc."
+Amount: $450.00
+PO Number: PO-12345
+Invoice Number: INV-2024-001
+Due Date: 2024-02-15
+```
+**Expected Output**: 
+- Status: `approved`
+- PO Match: `matched`, variance: 0%
+- Validation: `passed`, confidence: 0.95
+- No approval required
+
+#### Scenario 2: High-Value Invoice (Escalate)
+**Input**:
+```
+Vendor: "Cloud Services LLC"
+Amount: $15,000.00
+PO Number: PO-67890
+Invoice Number: INV-2024-089
+Due Date: 2024-02-20
+```
+**Expected Output**:
+- Status: `pending_approval`
+- Approval Required: `true`, reason: "Amount exceeds $10K threshold"
+- Approver Role: "Finance Manager"
+- Validation: `passed`, confidence: 0.92
+
+#### Scenario 3: Duplicate Invoice (Reject)
+**Input**:
+```
+Vendor: "Office Supplies Inc."
+Amount: $450.00
+PO Number: PO-12345
+Invoice Number: INV-2024-001  (duplicate of Scenario 1)
+Due Date: 2024-02-15
+```
+**Expected Output**:
+- Status: `rejected`
+- Validation: `failed`, flags: ["duplicate_detected"]
+- Confidence: 1.0 (exact match)
+- Notification sent to submitter
+
+#### Scenario 4: PO Mismatch (Flag)
+**Input**:
+```
+Vendor: "Tech Hardware Co."
+Amount: $8,500.00
+PO Number: PO-11111
+Invoice Number: INV-2024-150
+Expected PO Amount: $7,000.00
+Actual Invoice Amount: $8,500.00 (21.4% variance)
+```
+**Expected Output**:
+- Status: `flagged`
+- Validation: `failed`, flags: ["po_variance_exceeds_10_percent"]
+- Variance Percent: 21.4%
+- Action: "Hold for human review"
+
+#### Scenario 5: Unreadable PDF (Error)
+**Input**:
+```
+File: corrupted_invoice.pdf
+Content: [binary garbage / scanned image with no OCR]
+```
+**Expected Output**:
+- Status: `rejected`
+- Validation: `failed`, flags: ["pdf_unreadable"]
+- Action: "Request re-upload"
+- Error logged to ops team Slack
+
+### Full Evaluation Suite
+- Location: `evals/invoice-processor/`
+- Total Scenarios: 50+ cases covering all validation rules, edge cases, and error conditions
+- Categories: standard approvals, escalations, duplicates, PO mismatches, unreadable files, new vendors, currency conversions, tax calculations

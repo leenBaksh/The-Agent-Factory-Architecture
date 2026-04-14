@@ -53,13 +53,6 @@ logger = logging.getLogger(__name__)
 # Track component availability (set during lifespan)
 db_available = False
 
-# ── Logging ────────────────────────────────────────────────────────────────────
-
-logging.basicConfig(
-    level=settings.log_level,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-
 # ── Lifespan ───────────────────────────────────────────────────────────────────
 
 

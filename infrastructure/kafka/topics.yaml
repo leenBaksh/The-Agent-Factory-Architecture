@@ -1,20 +1,96 @@
 # Kafka Topic Definitions for Digital FTE Infrastructure
 # These topics form the event backbone for all FTE operations
+#
+# Customer Success FTE topics (matching .env configuration)
+# Infrastructure-level topics for cross-FTE communication
+
+# ── Customer Success FTE Topics ──────────────────────────────────────────────
 
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: fte-triggers-inbound
+  name: cs-fte-messages-inbound
   namespace: agent-factory
   labels:
     strimzi.io/cluster: agent-factory-kafka
 spec:
+  topicName: cs-fte.messages.inbound
   partitions: 6
   replicas: 3
   config:
     retention.ms: 604800000  # 7 days
     cleanup.policy: delete
     segment.bytes: 1073741824  # 1GB
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: cs-fte-messages-outbound
+  namespace: agent-factory
+  labels:
+    strimzi.io/cluster: agent-factory-kafka
+spec:
+  topicName: cs-fte.messages.outbound
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 604800000  # 7 days
+    cleanup.policy: delete
+    segment.bytes: 1073741824
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: cs-fte-tickets-escalations
+  namespace: agent-factory
+  labels:
+    strimzi.io/cluster: agent-factory-kafka
+spec:
+  topicName: cs-fte.tickets.escalations
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 2592000000  # 30 days
+    cleanup.policy: delete
+    segment.bytes: 1073741824
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: cs-fte-messages-dlq
+  namespace: agent-factory
+  labels:
+    strimzi.io/cluster: agent-factory-kafka
+spec:
+  topicName: cs-fte.messages.dlq
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 7776000000  # 90 days (for debugging failed messages)
+    cleanup.policy: delete
+    segment.bytes: 1073741824
+
+# ── Cross-FTE Infrastructure Topics ─────────────────────────────────────────
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fte-audit-actions
+  namespace: agent-factory
+  labels:
+    strimzi.io/cluster: agent-factory-kafka
+spec:
+  topicName: fte.audit.actions
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 220898880000  # 7 years (compliance)
+    cleanup.policy: delete
+    segment.bytes: 1073741824
 
 ---
 apiVersion: kafka.strimzi.io/v1beta2
@@ -29,54 +105,6 @@ spec:
   replicas: 3
   config:
     retention.ms: 2592000000  # 30 days
-    cleanup.policy: delete
-    segment.bytes: 1073741824
-
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  name: fte-status-updates
-  namespace: agent-factory
-  labels:
-    strimzi.io/cluster: agent-factory-kafka
-spec:
-  partitions: 6
-  replicas: 3
-  config:
-    retention.ms: 2592000000  # 30 days
-    cleanup.policy: delete
-    segment.bytes: 1073741824
-
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  name: fte-results-completed
-  namespace: agent-factory
-  labels:
-    strimzi.io/cluster: agent-factory-kafka
-spec:
-  partitions: 6
-  replicas: 3
-  config:
-    retention.ms: 7776000000  # 90 days
-    cleanup.policy: delete
-    segment.bytes: 2147483648  # 2GB
-
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  name: fte-audit-actions
-  namespace: agent-factory
-  labels:
-    strimzi.io/cluster: agent-factory-kafka
-spec:
-  partitions: 12
-  replicas: 3
-  config:
-    retention.ms: 220898880000  # 7 years (compliance)
     cleanup.policy: delete
     segment.bytes: 1073741824
 

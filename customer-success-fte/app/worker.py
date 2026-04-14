@@ -19,6 +19,7 @@ Guarantees:
 import asyncio
 import json
 import logging
+import platform
 import signal
 import uuid
 from datetime import datetime, timezone
@@ -486,8 +487,11 @@ async def main() -> None:
         logger.info("Shutdown signal received — stopping worker.")
         asyncio.create_task(worker.stop())
 
-    loop.add_signal_handler(signal.SIGTERM, _shutdown)
-    loop.add_signal_handler(signal.SIGINT, _shutdown)
+    # Signal handlers only work on Unix (Linux/macOS)
+    # On Windows, use Ctrl+C to stop the process
+    if platform.system() != "Windows":
+        loop.add_signal_handler(signal.SIGTERM, _shutdown)
+        loop.add_signal_handler(signal.SIGINT, _shutdown)
 
     try:
         await worker.run()

@@ -7,7 +7,7 @@ Async SQLAlchemy database layer.
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pgvector.sqlalchemy import Vector
@@ -131,8 +131,8 @@ class Customer(Base):
     company:      Mapped[Optional[str]]      = mapped_column(Text)
     plan:         Mapped[Optional[str]]      = mapped_column(Text)
     metadata_:    Mapped[dict]               = mapped_column("metadata", JSON, nullable=False, default=dict)
-    created_at:   Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at:   Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at:   Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at:   Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     identifiers:  Mapped[list["CustomerIdentifier"]] = relationship(back_populates="customer", cascade="all, delete-orphan")
     conversations: Mapped[list["Conversation"]]       = relationship(back_populates="customer", cascade="all, delete-orphan")
@@ -149,7 +149,7 @@ class CustomerIdentifier(Base):
     channel:     Mapped[str]        = mapped_column(Enum(ChannelType, name="channel_type"), nullable=False)
     external_id: Mapped[str]        = mapped_column(Text, nullable=False)
     metadata_:   Mapped[dict]       = mapped_column("metadata", JSON, nullable=False, default=dict)
-    created_at:  Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at:  Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     customer: Mapped["Customer"] = relationship(back_populates="identifiers")
 
@@ -163,11 +163,11 @@ class Conversation(Base):
     subject:         Mapped[Optional[str]]   = mapped_column(Text)
     status:          Mapped[str]             = mapped_column(Enum(TicketStatus, name="ticket_status"), nullable=False, default=TicketStatus.open)
     context:         Mapped[dict]            = mapped_column(JSON, nullable=False, default=dict)
-    started_at:      Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    last_message_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    started_at:      Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    last_message_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     closed_at:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    created_at:      Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at:      Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at:      Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at:      Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     customer:  Mapped["Customer"]     = relationship(back_populates="conversations")
     messages:  Mapped[list["Message"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
@@ -188,10 +188,10 @@ class Message(Base):
     agent_response:      Mapped[Optional[str]]   = mapped_column(Text)
     processing_metadata: Mapped[dict]            = mapped_column(JSON, nullable=False, default=dict)
     error_details:       Mapped[Optional[dict]]  = mapped_column(JSON)
-    received_at:         Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    received_at:         Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     replied_at:          Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    created_at:          Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at:          Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at:          Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at:          Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     conversation: Mapped["Conversation"]        = relationship(back_populates="messages")
     customer:     Mapped["Customer"]            = relationship(back_populates="messages")
@@ -217,8 +217,8 @@ class Ticket(Base):
     resolved_at:     Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     closed_at:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     due_at:          Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    created_at:      Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at:      Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at:      Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at:      Mapped[datetime]           = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     conversation: Mapped["Conversation"]      = relationship(back_populates="tickets")
     customer:     Mapped["Customer"]          = relationship(back_populates="tickets")
@@ -236,8 +236,8 @@ class KnowledgeBase(Base):
     embedding:  Mapped[Optional[list]]  = mapped_column(Vector(1536))
     metadata_:  Mapped[dict]            = mapped_column("metadata", JSON, nullable=False, default=dict)
     is_active:  Mapped[bool]            = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class ChannelConfig(Base):
@@ -248,8 +248,8 @@ class ChannelConfig(Base):
     is_active:   Mapped[bool]      = mapped_column(Boolean, nullable=False, default=True)
     config:      Mapped[dict]      = mapped_column(JSON, nullable=False, default=dict)
     rate_limit:  Mapped[int]       = mapped_column(Integer, nullable=False, default=100)
-    created_at:  Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at:  Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at:  Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at:  Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class AgentMetric(Base):
@@ -268,7 +268,7 @@ class AgentMetric(Base):
     was_escalated:     Mapped[bool]             = mapped_column(Boolean, nullable=False, default=False)
     escalation_reason: Mapped[Optional[str]]    = mapped_column(Text)
     metadata_:         Mapped[dict]             = mapped_column("metadata", JSON, nullable=False, default=dict)
-    created_at:        Mapped[datetime]         = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at:        Mapped[datetime]         = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     message: Mapped["Message"]         = relationship(back_populates="metrics")
     ticket:  Mapped[Optional["Ticket"]] = relationship(back_populates="metrics")

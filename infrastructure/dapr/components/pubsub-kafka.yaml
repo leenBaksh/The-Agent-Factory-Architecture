@@ -8,7 +8,7 @@ spec:
   version: v1
   metadata:
   - name: brokers
-    value: "kafka-broker:9092"
+    value: "kafka:9092"
   - name: authRequired
     value: "false"
   - name: consumerID
